@@ -44,7 +44,8 @@ export async function GET(request) {
 
     console.log(`[scrape-naukri] starting with ${activeUsers.length} users`);
 
-    const cbResult = await withCircuitBreaker('naukri', () => scrapeNaukri(activeUsers));
+    // Cap at 5 clusters — each render=true call takes ~40s, 5×40=200s fits 300s budget
+    const cbResult = await withCircuitBreaker('naukri', () => scrapeNaukri(activeUsers, { maxClusters: 5 }));
 
     if (cbResult?.skipped) {
       return NextResponse.json({ skipped: true, reason: cbResult.reason });
