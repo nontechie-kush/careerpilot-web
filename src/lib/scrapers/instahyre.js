@@ -26,8 +26,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function scrapeInstahyre() {
   const scraperKey = process.env.SCRAPERAPI_KEY;
-  if (!scraperKey) {
-    throw new Error('SCRAPERAPI_KEY required for Instahyre (React-rendered). Set it to enable this source.');
+  if (!scraperKey || scraperKey === 'placeholder') {
+    console.log('[instahyre] no SCRAPERAPI_KEY — skipping');
+    return [];
   }
 
   const jobs = [];
@@ -43,8 +44,8 @@ export async function scrapeInstahyre() {
       const html = await res.text();
       const $ = load(html);
 
-      // Try to extract embedded JSON (Next.js __NEXT_DATA__ or window.__data__)
-      const pageJobs = extractInstahyreNextData($) || extractInstahyreHTML($);
+      // Try embedded JSON first (faster + more complete), fall back to HTML
+      const pageJobs = extractInstahyreNextData($, html) || extractInstahyreHTML($);
 
       pageJobs.forEach((j) => {
         if (!seen.has(j.external_id)) { seen.add(j.external_id); jobs.push(j); }
@@ -62,20 +63,33 @@ export async function scrapeInstahyre() {
 
 // ── Extraction: embedded JSON ─────────────────────────────────────────────────
 
-function extractInstahyreNextData($) {
+function extractInstahyreNextData($, html) {
   try {
     const raw = $('#__NEXT_DATA__').text();
     if (!raw) return null;
 
     const data = JSON.parse(raw);
-    // Instahyre stores job list at various paths depending on page version
+    const pp = data?.props?.pageProps;
+
+    // Walk all known paths — Instahyre's structure shifts between deploys
     const jobs =
-      data?.props?.pageProps?.jobs ||
-      data?.props?.pageProps?.jobList ||
-      data?.props?.pageProps?.initialData?.jobs ||
+      pp?.jobs ||
+      pp?.jobList ||
+      pp?.initialData?.jobs ||
+      pp?.data?.jobs ||
+      pp?.searchResults?.jobs ||
+      pp?.results ||
       [];
 
-    if (!jobs.length) return null;
+    if (!jobs.length) {
+      // Last resort: regex scan raw HTML for embedded JSON job arrays
+      const m = html?.match(/"jobs"\s*:\s*(\[\{.+?\}\])/s);
+      if (m) {
+        const parsed = JSON.parse(m[1]);
+        if (parsed?.length) return parsed.map(parseInstahyreJob).filter(Boolean);
+      }
+      return null;
+    }
     return jobs.map(parseInstahyreJob).filter(Boolean);
   } catch {
     return null;
@@ -118,7 +132,7 @@ function extractInstahyreHTML($) {
       apply_url:        url,
       apply_type:       'instahyre',
       department:       null,
-      company_stage:    'unknown',
+      company_stage:    null,
       posted_at:        null,
       ...salary,
       description_hash: makeDescHash(company, title, location),

@@ -131,7 +131,6 @@ import { scrapeAshby } from './ashby';
 import { scrapeRemotive } from './remotive';
 import { scrapeYC } from './yc';
 import { scrapeCutshort } from './cutshort';
-import { scrapeHirist } from './hirist';
 import { scrapeHirect } from './hirect';
 import { scrapeWellfound } from './wellfound';
 import { scrapeNaukri } from './naukri';
@@ -140,6 +139,7 @@ import { scrapeArc } from './arc';
 import { scrapeTopStartups } from './topstartups';
 import { scrapeNextLeap } from './nextleap';
 import { scrapeInstahyre } from './instahyre';
+import { scrapeFoundit } from './foundit';
 
 export const SCRAPERS = [
   { source: 'greenhouse', fn: scrapeGreenhouse },
@@ -148,7 +148,7 @@ export const SCRAPERS = [
   { source: 'remotive', fn: scrapeRemotive },
   { source: 'yc', fn: scrapeYC },
   { source: 'cutshort', fn: scrapeCutshort },
-  { source: 'hirist', fn: scrapeHirist },
+  { source: 'foundit', fn: scrapeFoundit },   // replaced Hirist (API returns 401)
   { source: 'hirect', fn: scrapeHirect },
   { source: 'wellfound', fn: scrapeWellfound },
   { source: 'naukri', fn: scrapeNaukri },
