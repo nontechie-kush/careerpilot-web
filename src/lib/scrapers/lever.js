@@ -66,18 +66,24 @@ export async function scrapeLever() {
 
   for (const [slug, company, domain] of COMPANIES) {
     try {
-      const res = await fetch(`${BASE}/${slug}?mode=json`, {
-        headers: { 'User-Agent': 'CareerPilot/1.0' },
-        signal: AbortSignal.timeout(8000),
-      });
-
-      if (!res.ok) {
-        if (res.status !== 404) console.warn(`[lever] ${slug}: HTTP ${res.status}`);
-        await sleep(150);
-        continue;
+      // Share one AbortController across fetch + res.json() so body-read timeout also fires
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 8000);
+      let listings;
+      try {
+        const res = await fetch(`${BASE}/${slug}?mode=json`, {
+          headers: { 'User-Agent': 'CareerPilot/1.0' },
+          signal: ac.signal,
+        });
+        if (!res.ok) {
+          if (res.status !== 404) console.warn(`[lever] ${slug}: HTTP ${res.status}`);
+          await sleep(150);
+          continue;
+        }
+        listings = await res.json();
+      } finally {
+        clearTimeout(timer);
       }
-
-      const listings = await res.json();
       if (!Array.isArray(listings)) { await sleep(150); continue; }
 
       for (const job of listings) {
