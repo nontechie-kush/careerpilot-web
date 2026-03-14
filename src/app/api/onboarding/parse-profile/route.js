@@ -31,8 +31,9 @@ Return ONLY a valid JSON object — no markdown, no explanation, no code fences.
   "skills": ["array of up to 10 most relevant technical and professional skills"],
   "companies": ["companies worked at, most recent first"],
   "education": "highest degree + institution, or null",
-  "strongest_card": "one specific sentence — this candidate's single biggest differentiator. Make it concrete and specific to this person, never generic.",
+  "candidate_edges": ["1-3 specific competitive advantages — concrete differentiators for THIS person, never generic. E.g. 'Led 0→1 product at a Series B fintech', '8 yrs Android at FAANG'. Max 3 items."],
   "keywords": ["15-20 keywords for job matching — mix of skills, domains, tools, and role types"],
+  "career_gaps": "null if no notable gaps. Otherwise 1-sentence note e.g. '18-month gap 2022–23, no context provided in CV.' Do not speculate on reason.",
   "job_search_titles": {
     "suitable": ["2-3 job titles this candidate can credibly apply for RIGHT NOW — exact current role + obvious equivalents. E.g. if they're a PM, include 'Product Manager' and 'Senior Product Manager' if >5 yrs exp."],
     "maybe": ["3-5 lateral or stretch titles worth exploring — adjacent roles with strong skill overlap (e.g. PM → Growth Manager, Product Owner, AI Product Manager) or one seniority step up they haven't held yet. These require some assumption."],
@@ -42,12 +43,13 @@ Return ONLY a valid JSON object — no markdown, no explanation, no code fences.
 
 Rules:
 - Be accurate. If something is not clear, use null — do not fabricate.
-- "strongest_card" must be genuinely specific. Never write "experienced professional with proven track record."
+- "candidate_edges" must be genuinely specific. Never write "experienced professional with proven track record." Each edge should be a concrete, interview-ready differentiator.
 - "skills" must be actual skills — not job duties.
 - years_exp: estimate conservatively from what's available.
 - job_search_titles.suitable: max 3, must be roles they can get interviews for TODAY with this profile.
 - job_search_titles.maybe: max 5, credible stretch — not fantasy. A PM can maybe do Growth Manager, not CTO.
-- job_search_titles.excluded: at least 3, be honest — helps us avoid wasting their time and our scraping credits.`;
+- job_search_titles.excluded: at least 3, be honest — helps us avoid wasting their time and our scraping credits.
+- career_gaps: only flag gaps of 6+ months between roles. Never fabricate dates not in the CV. If dates are vague or omitted, set null.`;
 
 export async function POST(request) {
   try {

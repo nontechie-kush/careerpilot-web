@@ -309,7 +309,7 @@ export default function JobDetailPage() {
         <div className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800">
           <div className="flex items-center justify-between px-5 header-safe-top pb-4">
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push('/dashboard/jobs')}
               className="flex items-center gap-1 text-gray-600 dark:text-gray-400 font-medium text-sm"
             >
               <ChevronLeft className="w-5 h-5" /> Jobs
@@ -472,14 +472,28 @@ export default function JobDetailPage() {
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                 About the Role
               </p>
-              <div
-                className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none prose-a:text-violet-600 prose-ul:pl-4 prose-li:my-0.5"
-                dangerouslySetInnerHTML={{
-                  __html: job.description.length > 3000
-                    ? `${job.description.slice(0, 3000)}…`
-                    : job.description,
-                }}
-              />
+              {job.source === 'naukri' && job.description.length < 200 ? (
+                <div className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                  <p>{job.description}</p>
+                  <a
+                    href={job.apply_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-3 text-violet-600 dark:text-violet-400 font-medium hover:underline"
+                  >
+                    Read full description on Naukri →
+                  </a>
+                </div>
+              ) : (
+                <div
+                  className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none prose-a:text-violet-600 prose-ul:pl-4 prose-li:my-0.5"
+                  dangerouslySetInnerHTML={{
+                    __html: job.description.length > 3000
+                      ? `${job.description.slice(0, 3000)}…`
+                      : job.description,
+                  }}
+                />
+              )}
             </div>
           )}
 

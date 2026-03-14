@@ -80,9 +80,10 @@ function RecruiterCard({ match, onOutreach }) {
           <div className="flex items-start justify-between gap-2">
             <Link href={`/dashboard/referrals/${match.id}`} className="flex-1 min-w-0">
               <p className="font-semibold text-gray-900 dark:text-white text-sm leading-snug">{match.name}</p>
-              <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 truncate">
-                {match.title} · {match.company}
-              </p>
+              <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 truncate">{match.title}</p>
+              {match.company && (
+                <p className="text-violet-600 dark:text-violet-400 text-xs font-medium mt-0.5 truncate">@ {match.company}</p>
+              )}
             </Link>
             <div className="flex items-center gap-1 shrink-0">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />

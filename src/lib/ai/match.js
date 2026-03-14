@@ -40,7 +40,8 @@ export function buildCandidateSummary(profile, user) {
     seniority:     p.seniority || 'mid',
     years_exp:     p.years_exp || 0,
     skills:        (p.skills || []).slice(0, 10).join(', ') || 'Not specified',
-    strongest_card: p.strongest_card || 'Not specified',
+    // candidate_edges replaces strongest_card (new profiles); fall back for old ones
+    candidate_edges: (p.candidate_edges?.slice(0, 3) || (p.strongest_card ? [p.strongest_card] : [])).join(' | ') || 'Not specified',
     // Preferences
     location_pref: (user.locations || []).slice(0, 3).join(' / ') || 'Open',
     ic_or_lead:    user.ic_or_lead || 'either',

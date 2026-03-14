@@ -41,12 +41,12 @@ export async function POST(request) {
     const { match_id } = await request.json();
     if (!match_id) return NextResponse.json({ error: 'match_id required' }, { status: 400 });
 
-    // Fetch match + job in parallel with profile
-    const [{ data: match }, { data: profileRow }] = await Promise.all([
+    // Fetch match + job, profile, and user prefs in parallel
+    const [{ data: match }, { data: profileRow }, { data: userRow }] = await Promise.all([
       supabase
         .from('job_matches')
         .select(`
-          id,
+          id, match_reasons, gap_analysis,
           jobs (
             id, title, company, company_domain, apply_type, apply_url,
             description, location, remote_type, salary_min, salary_max, salary_currency
@@ -60,6 +60,11 @@ export async function POST(request) {
         .select('parsed_json')
         .eq('user_id', user.id)
         .order('parsed_at', { ascending: false })
+        .maybeSingle(),
+      supabase
+        .from('users')
+        .select('pilot_mode')
+        .eq('id', user.id)
         .maybeSingle(),
     ]);
 
@@ -138,6 +143,8 @@ export async function POST(request) {
       knownQuestions,
       hasRealQuestions,
       applyContext,
+      userRow?.pilot_mode || 'steady',
+      { match_reasons: match?.match_reasons || [], gap_analysis: match?.gap_analysis || [] },
     );
 
     const message = await anthropic.messages.create({

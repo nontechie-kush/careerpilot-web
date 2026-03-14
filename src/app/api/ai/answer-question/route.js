@@ -28,8 +28,8 @@ export async function POST(request) {
     if (!match_id) return NextResponse.json({ error: 'match_id required' }, { status: 400 });
     if (!question?.trim()) return NextResponse.json({ error: 'question required' }, { status: 400 });
 
-    // Fetch job + profile in parallel
-    const [{ data: match }, { data: profileRow }] = await Promise.all([
+    // Fetch job + profile + user mode in parallel
+    const [{ data: match }, { data: profileRow }, { data: userRow }] = await Promise.all([
       supabase
         .from('job_matches')
         .select(`
@@ -44,6 +44,11 @@ export async function POST(request) {
         .select('parsed_json')
         .eq('user_id', user.id)
         .order('parsed_at', { ascending: false })
+        .maybeSingle(),
+      supabase
+        .from('users')
+        .select('pilot_mode')
+        .eq('id', user.id)
         .maybeSingle(),
     ]);
 
@@ -61,13 +66,23 @@ export async function POST(request) {
     const recentCompany = (p.companies || [])[0] || '';
     const descExcerpt = (job.description || '').replace(/<[^>]+>/g, ' ').slice(0, 600);
 
+    const PILOT_MODES = {
+      steady:     'Calm, methodical. Minimal words. Just clarity.',
+      coach:      'Encouraging and tactical. Help them see their strength.',
+      hype:       'Confident, high-energy. Make them sound capable and ready.',
+      unfiltered: 'Brutally honest. No sugarcoating. Say exactly what the answer needs to say.',
+    };
+    const pilotMode = userRow?.pilot_mode || 'steady';
+    const modeDesc = PILOT_MODES[pilotMode] || PILOT_MODES.steady;
+
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 350,
       temperature: 0.7,
       system: `You are Pilot — a job application assistant writing in first person as the candidate.
 Be specific and concrete. 2–4 sentences max. Never say "passionate", "excited to join", or "I believe".
-Use actual experience and skills from the candidate profile. No filler. Return plain text — no JSON, no markdown.`,
+Use actual experience and skills from the candidate profile. No filler. Return plain text — no JSON, no markdown.
+Current mode: ${pilotMode} — ${modeDesc}`,
       messages: [
         {
           role: 'user',

@@ -13,15 +13,24 @@
  *                              job description content (not just the title)
  */
 
+const PILOT_MODES = {
+  steady:      'Calm and methodical. Minimal words. No hype. Just clarity.',
+  coach:       'Encouraging and tactical. Highlight the opportunity. Build confidence.',
+  hype:        'High energy. Urgency. Make them feel capable and ready to apply now.',
+  unfiltered:  'Brutally honest. Zero sugarcoating. Call out gaps directly.',
+};
+
 /**
  * @param {object}  job              — jobs row from Supabase
  * @param {object}  parsedProfile    — profiles.parsed_json
  * @param {Array}   knownQuestions   — [{question, required}] from ATS API or company_application_flows
  * @param {boolean} hasRealQuestions — whether knownQuestions are actual form questions
  * @param {string}  applyContext     — 'standard' | 'naukri_native' | 'iimjobs_native'
+ * @param {string}  pilotMode        — 'steady' | 'coach' | 'hype' | 'unfiltered'
+ * @param {object}  matchSignals     — { match_reasons: string[], gap_analysis: string[] }
  * @returns {{ system: string, user: string }}
  */
-export function buildApplicationPrompt(job, parsedProfile, knownQuestions = [], hasRealQuestions = false, applyContext = 'standard') {
+export function buildApplicationPrompt(job, parsedProfile, knownQuestions = [], hasRealQuestions = false, applyContext = 'standard', pilotMode = 'steady', matchSignals = {}) {
   const p = parsedProfile || {};
   const name = p.name || 'the candidate';
   const title = p.title || '';
@@ -29,6 +38,10 @@ export function buildApplicationPrompt(job, parsedProfile, knownQuestions = [], 
   const strongest = p.strongest_card || '';
   const yearsExp = p.years_exp ? `${p.years_exp} years` : '';
   const recentCompany = (p.companies || [])[0] || '';
+
+  const modeDesc = PILOT_MODES[pilotMode] || PILOT_MODES.steady;
+  const matchReasons = (matchSignals.match_reasons || []).slice(0, 3);
+  const gapAnalysis  = (matchSignals.gap_analysis  || []).slice(0, 2);
 
   // Use more description context so generated questions are role-specific
   const descExcerpt = (job.description || '').replace(/<[^>]+>/g, ' ').slice(0, 1400);
@@ -57,11 +70,19 @@ Focus on role-specific functional questions (e.g., for finance roles: P&L owners
     ? `"cover_letter": "Short cover note for ${platform} native apply. 100–150 words max. Conversational, direct — NOT a formal cover letter. 1–2 short paragraphs: what I do + one relevant achievement, why this specific role/company. No 'Dear Hiring Manager'. No formal sign-off."`
     : `"cover_letter": "3 short paragraphs, max 150 words total. Paragraph 1: who I am and why this role. Paragraph 2: one specific example of relevant impact. Paragraph 3: what I bring + clear close."`;
 
+  const matchSignalsBlock = matchReasons.length
+    ? `\nWHY THIS JOB IS A STRONG MATCH (pre-computed from scoring — use these as your writing brief):
+${matchReasons.map((r) => `- ${r}`).join('\n')}${gapAnalysis.length ? `\nGAPS TO ADDRESS PROACTIVELY IN THE COVER LETTER:
+${gapAnalysis.map((g) => `- ${g}`).join('\n')}` : ''}
+Lead with the strongest match signal. Address the most critical gap before the reader notices it.`
+    : '';
+
   return {
     system: `You are Pilot — a brutally effective job application writer.
 You write in first person as the candidate. You are specific. You never say "passionate", "excited to join", "team player", or "fast learner".
 CRITICAL: Your ONLY source of truth about the company is the ROLE CONTEXT provided below. Do NOT use your training knowledge about the company — it may be outdated or wrong. If something about the company is not in the role context, do not mention it.
 Tone: confident, direct, human. No corporate fluff. No buzzwords.
+Current mode: ${pilotMode} — ${modeDesc}
 Return ONLY valid JSON — no markdown, no preamble, no commentary.`,
 
     user: `Write job application materials for:
@@ -78,7 +99,7 @@ CANDIDATE:
 - Top skills: ${skills}
 - Strongest card: ${strongest}
 - Experience: ${yearsExp}
-
+${matchSignalsBlock}
 ${questionsBlock}
 
 Return this exact JSON shape:

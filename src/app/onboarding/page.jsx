@@ -285,10 +285,16 @@ function StepImport({ onNext, onProfileParsed }) {
                 </div>
               </div>
             )}
-            {parsedProfile.strongest_card && (
+            {(parsedProfile.candidate_edges?.length > 0 || parsedProfile.strongest_card) && (
               <div className="flex gap-3 items-start">
-                <span className="text-gray-400 text-sm w-20 shrink-0 mt-0.5">Your edge</span>
-                <span className="text-gray-600 dark:text-gray-300 text-sm">{parsedProfile.strongest_card}</span>
+                <span className="text-gray-400 text-sm w-20 shrink-0 mt-1">
+                  {(parsedProfile.candidate_edges?.length || 1) > 1 ? 'Your edges' : 'Your edge'}
+                </span>
+                <div className="flex flex-col gap-1.5">
+                  {(parsedProfile.candidate_edges?.slice(0, 3) || [parsedProfile.strongest_card]).map((edge, i) => (
+                    <span key={i} className="text-gray-600 dark:text-gray-300 text-sm leading-snug">{edge}</span>
+                  ))}
+                </div>
               </div>
             )}
           </div>

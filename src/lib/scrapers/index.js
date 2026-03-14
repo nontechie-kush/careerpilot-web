@@ -69,7 +69,7 @@ export function parseSalary(str = '') {
 export async function upsertJob(supabase, job) {
   const { data: existing } = await supabase
     .from('jobs')
-    .select('id, repost_count')
+    .select('id, repost_count, posted_at')
     .eq('source', job.source)
     .eq('external_id', job.external_id)
     .maybeSingle();
@@ -77,10 +77,10 @@ export async function upsertJob(supabase, job) {
   const now = new Date().toISOString();
 
   if (existing) {
-    await supabase
-      .from('jobs')
-      .update({ last_seen_at: now, repost_count: (existing.repost_count || 0) + 1, is_active: true })
-      .eq('id', existing.id);
+    const update = { last_seen_at: now, repost_count: (existing.repost_count || 0) + 1, is_active: true };
+    // Backfill posted_at if it was previously null and we now have a value
+    if (!existing.posted_at && job.posted_at) update.posted_at = job.posted_at;
+    await supabase.from('jobs').update(update).eq('id', existing.id);
     return 'updated';
   }
 

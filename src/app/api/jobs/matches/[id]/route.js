@@ -34,7 +34,7 @@ export async function GET(request, props) {
            location, remote_type, company_stage,
            apply_url, apply_type, department,
            salary_min, salary_max, salary_currency,
-           posted_at, repost_count, description
+           posted_at, repost_count, description, source
          )`,
       )
       .eq('id', id)

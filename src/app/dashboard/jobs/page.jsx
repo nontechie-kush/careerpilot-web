@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+
+const JOBS_STATE_KEY = 'jobs_page_state';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Globe, ArrowLeft } from 'lucide-react';
 import { useJobs } from '@/hooks/useJobs';
@@ -33,6 +35,8 @@ const REMOTE_FILTERS = [
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
+  const scrollRestoredRef = useRef(false);
+
   const [search, setSearch] = useState('');
   const [cohortTab, setCohortTab] = useState(() => {
     const tab = searchParams.get('tab');
@@ -42,13 +46,59 @@ export default function JobsPage() {
   const [dismissTarget, setDismissTarget] = useState(null);
   const [freeWorld, setFreeWorld] = useState(() => searchParams.get('freeworld') === 'true');
 
+  // Restore saved tab from sessionStorage (client-only, runs after mount)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(JOBS_STATE_KEY) || '{}');
+      if (saved.tab && COHORT_TABS.some(t => t.id === saved.tab)) {
+        setCohortTab(saved.tab);
+      }
+    } catch {}
+  }, []);
+
   const activeTab = COHORT_TABS.find((t) => t.id === cohortTab);
 
+  // useJobs must be declared BEFORE any useEffect that references `loading`
   const { matches: allMatches, total, excellentCount, goodCount, othersCount, loading, error, dismiss, save } = useJobs({
     status: freeWorld ? 'all' : activeTab.status,
     limit: 200,
     minScore: freeWorld ? 0 : activeTab.minScore,
   });
+
+  // Save tab to sessionStorage on change; reset scroll when switching tabs
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(JOBS_STATE_KEY) || '{}');
+      const isTabSwitch = saved.tab && saved.tab !== cohortTab;
+      sessionStorage.setItem(JOBS_STATE_KEY, JSON.stringify({
+        tab: cohortTab,
+        scrollY: isTabSwitch ? 0 : (saved.scrollY || 0),
+      }));
+      if (isTabSwitch) scrollRestoredRef.current = false;
+    } catch {}
+  }, [cohortTab]);
+
+  // Save scroll position continuously
+  useEffect(() => {
+    const onScroll = () => {
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(JOBS_STATE_KEY) || '{}');
+        sessionStorage.setItem(JOBS_STATE_KEY, JSON.stringify({ ...saved, scrollY: window.scrollY }));
+      } catch {}
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Restore scroll after cards have loaded (only once per mount)
+  useEffect(() => {
+    if (loading || scrollRestoredRef.current) return;
+    scrollRestoredRef.current = true;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(JOBS_STATE_KEY) || '{}');
+      if (saved.scrollY > 0) window.scrollTo({ top: saved.scrollY, behavior: 'instant' });
+    } catch {}
+  }, [loading]);
 
   const filtered = useMemo(() => {
     let base = freeWorld

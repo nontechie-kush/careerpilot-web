@@ -15,7 +15,14 @@
  * @param {object} recruiter    — recruiters row
  * @returns {string} prompt
  */
-export function buildOutreachPrompt(userProfile, userPrefs, recruiter) {
+const PILOT_MODES = {
+  steady:     'Warm but minimal. No filler. Confident and respectful.',
+  coach:      'Encouraging tone. Position the candidate as someone worth knowing.',
+  hype:       'Confident and direct. Slightly more assertive energy.',
+  unfiltered: 'Blunt and honest. No networking clichés. Say exactly what this person brings.',
+};
+
+export function buildOutreachPrompt(userProfile, userPrefs, recruiter, pilotMode = 'steady') {
   const parsed = userProfile?.parsed_json || {};
   const name = parsed.name || 'the candidate';
   const seniority = parsed.seniority || '';
@@ -37,7 +44,10 @@ export function buildOutreachPrompt(userProfile, userPrefs, recruiter) {
 
   const recFirstName = recName.split(' ')[0];
 
+  const modeDesc = PILOT_MODES[pilotMode] || PILOT_MODES.steady;
+
   return `You are Pilot, an AI job agent drafting a short LinkedIn message on behalf of a job seeker asking for a referral.
+Current mode: ${pilotMode} — ${modeDesc}
 
 CANDIDATE:
 - Name: ${name}

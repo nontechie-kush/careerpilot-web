@@ -145,9 +145,31 @@ async function runInitialMatch(userId) {
   // Only use explicit target_roles for keyword search — not CV content
   const roleKeywords = buildRoleKeywords(userRow.target_roles);
 
-  // Fetch role-relevant jobs from existing DB only — fast (~10s)
-  // Naukri enrichment happens via the 4h cron (scrape-jobs + match-jobs)
+  // Fetch role-relevant jobs from existing DB
   const jobs = await fetchRelevantJobs(supabase, roleKeywords, INITIAL_BATCH * 3);
+
+  // India users: always include recent Naukri jobs in the scoring pool.
+  // fetchRelevantJobs may return 60 keyword-matched Greenhouse/Lever jobs and stop —
+  // Naukri jobs (different title formats) never enter the pool otherwise.
+  const targetsIndia = (userRow.locations || []).some((l) => l.toLowerCase() === 'india');
+  if (targetsIndia) {
+    const naukriSelect = 'id, title, company, company_domain, location, remote_type, company_stage, department, description, apply_url, apply_type, salary_min, salary_max, salary_currency, posted_at, source';
+    const { data: naukriJobs } = await supabase
+      .from('jobs')
+      .select(naukriSelect)
+      .eq('is_active', true)
+      .eq('source', 'naukri')
+      .order('posted_at', { ascending: false, nullsFirst: false })
+      .limit(40);
+
+    if (naukriJobs?.length) {
+      const existingIds = new Set(jobs.map((j) => j.id));
+      for (const j of naukriJobs) {
+        if (!existingIds.has(j.id)) jobs.push(j);
+      }
+      console.log(`[match/trigger] added ${naukriJobs.length} Naukri jobs to pool for India user (total pool: ${jobs.length})`);
+    }
+  }
 
   const jobsToScore = jobs.slice(0, INITIAL_BATCH * 3);
   if (!jobsToScore.length) return;

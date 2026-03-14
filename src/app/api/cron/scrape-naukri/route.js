@@ -55,13 +55,15 @@ export async function GET(request) {
     }
 
     const jobs = cbResult || [];
-    const { inserted, updated } = await upsertJobs(supabase, jobs);
+
+    const { inserted, updated, errors } = await upsertJobs(supabase, jobs);
 
     const summary = {
       duration_ms: Date.now() - startedAt,
       scraped: jobs.length,
       inserted,
       updated,
+      errors,
     };
 
     console.log('[scrape-naukri] done:', JSON.stringify(summary));

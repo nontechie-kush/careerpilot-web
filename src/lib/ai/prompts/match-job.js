@@ -31,7 +31,7 @@ Track: ${candidate.ic_or_lead} | Stage pref: ${candidate.stage_pref}
 ── WHAT THEY BRING ──
 Current title: ${candidate.title} (${candidate.seniority}, ${candidate.years_exp} yrs)
 Skills: ${candidate.skills}
-Strongest card: ${candidate.strongest_card}
+Competitive edges: ${candidate.candidate_edges}
 
 ── TWO-STEP SCORING ──
 

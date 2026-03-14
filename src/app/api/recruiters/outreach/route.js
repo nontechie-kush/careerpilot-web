@@ -56,7 +56,7 @@ export async function POST(request) {
     // Fetch user profile + prefs
     const [{ data: userRow }, { data: profile }] = await Promise.all([
       supabase.from('users')
-        .select('locations, target_roles, ic_or_lead, name')
+        .select('locations, target_roles, ic_or_lead, name, pilot_mode')
         .eq('id', user.id)
         .maybeSingle(),
       supabase.from('profiles')
@@ -76,6 +76,7 @@ export async function POST(request) {
       userProfile,
       userRow,
       match.recruiters,
+      userRow?.pilot_mode || 'steady',
     );
 
     // Call Claude (Haiku for speed + cost)

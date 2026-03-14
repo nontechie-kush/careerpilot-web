@@ -292,12 +292,25 @@ export default function HomePage() {
     return <span className="text-amber-600 dark:text-amber-400 font-semibold">No strong fits yet · {othersCount} ranked</span>;
   })();
 
-  // Get user display name
+  // Get user display name — prefer CV name over OAuth metadata over email
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      const name = user.user_metadata?.name || user.user_metadata?.full_name || '';
-      setUserName(name.split(' ')[0] || user.email?.split('@')[0] || '');
+      // Try profile first (CV-parsed name is most accurate)
+      try {
+        const res = await fetch('/api/profile');
+        if (res.ok) {
+          const data = await res.json();
+          const cvName = data.profile?.parsed_json?.name;
+          if (cvName) {
+            setUserName(cvName.split(' ')[0]);
+            return;
+          }
+        }
+      } catch {}
+      // Fallback: OAuth metadata, then email prefix
+      const metaName = user.user_metadata?.name || user.user_metadata?.full_name || '';
+      setUserName(metaName.split(' ')[0] || '');
     });
   }, []);
 
