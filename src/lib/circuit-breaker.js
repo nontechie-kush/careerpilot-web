@@ -12,8 +12,9 @@
 
 import { createServiceClient } from '@/lib/supabase/service-client';
 
-const FAILURE_THRESHOLD = 3;
-const OPEN_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+const FAILURE_THRESHOLD  = 3;
+const OPEN_TIMEOUT_MS    = 60 * 60 * 1000; // 1 hour
+const SCRAPER_TIMEOUT_MS = 5 * 60 * 1000;  // 5 min max per scraper — prevents one slow source blocking all others
 
 export async function withCircuitBreaker(source, fn) {
   const supabase = createServiceClient();
@@ -46,7 +47,10 @@ export async function withCircuitBreaker(source, fn) {
 
 async function runFn(supabase, source, fn, row) {
   try {
-    const result = await fn();
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`scraper timeout after ${SCRAPER_TIMEOUT_MS / 60000} minutes`)), SCRAPER_TIMEOUT_MS),
+    );
+    const result = await Promise.race([fn(), timeout]);
     await supabase
       .from('scraper_status')
       .update({

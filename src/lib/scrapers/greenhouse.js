@@ -113,7 +113,7 @@ export async function scrapeGreenhouse() {
           apply_url: job.absolute_url,
           apply_type: 'greenhouse',
           department: job.departments?.[0]?.name || null,
-          company_stage: 'unknown',
+          company_stage: null,
           posted_at: job.updated_at || null,
           salary_min: null,
           salary_max: null,

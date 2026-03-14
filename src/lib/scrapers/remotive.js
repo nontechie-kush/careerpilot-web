@@ -51,7 +51,7 @@ export async function scrapeRemotive() {
           apply_url: job.url,
           apply_type: 'external',
           department: job.category || null,
-          company_stage: 'unknown',
+          company_stage: null,
           posted_at: job.publication_date || null,
           ...salary,
           description_hash: makeDescHash(job.company_name, job.title, desc),

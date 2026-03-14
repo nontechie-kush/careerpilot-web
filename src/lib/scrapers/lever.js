@@ -97,7 +97,7 @@ export async function scrapeLever() {
           apply_url: job.hostedUrl,
           apply_type: 'lever',
           department: job.categories?.department || job.categories?.team || null,
-          company_stage: 'unknown',
+          company_stage: null,
           posted_at: job.createdAt ? new Date(job.createdAt).toISOString() : null,
           salary_min: job.salaryRange?.min ?? null,
           salary_max: job.salaryRange?.max ?? null,

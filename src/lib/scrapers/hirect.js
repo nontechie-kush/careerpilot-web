@@ -68,7 +68,7 @@ function extractHirectJobs($) {
       apply_url: url,
       apply_type: 'external',
       department: null,
-      company_stage: 'unknown',
+      company_stage: null,
       posted_at: null,
       ...salary,
       description_hash: makeDescHash(company, title, location),
