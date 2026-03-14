@@ -73,7 +73,8 @@ export async function scrapeAshby() {
       }
 
       const data = await res.json();
-      const listings = data.results || [];
+      // API returns { results: [...] } but has been observed returning { jobs: [...] } or { postings: [...] }
+      const listings = data.results || data.jobs || data.postings || [];
 
       for (const job of listings) {
         const location = job.locationName || job.location?.locationStr || '';
@@ -92,7 +93,7 @@ export async function scrapeAshby() {
           apply_url: job.jobUrl || `https://jobs.ashbyhq.com/${slug}/${job.id}`,
           apply_type: 'ashby',
           department: job.department?.name || job.team?.name || null,
-          company_stage: 'unknown',
+          company_stage: null,
           posted_at: job.publishedAt || null,
           salary_min: job.compensationTierSummary?.minValue ?? null,
           salary_max: job.compensationTierSummary?.maxValue ?? null,

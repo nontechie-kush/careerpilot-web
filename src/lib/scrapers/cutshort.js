@@ -83,15 +83,44 @@ async function fetchCategory(slug) {
   if (!match) throw new Error('No __NEXT_DATA__ found');
 
   const d       = JSON.parse(match[1]);
-  const queries = d.props?.pageProps?.dehydratedState?.queries || [];
 
+  // Try direct pageProps first (older Cutshort versions)
+  const directJobs = d.props?.pageProps?.jobs || d.props?.pageProps?.data?.jobs;
+  if (Array.isArray(directJobs) && directJobs.length > 0) {
+    return directJobs.map(parseJob).filter(Boolean);
+  }
+
+  // Walk dehydrated queries — try multiple known paths as Cutshort's structure shifts
+  const queries = d.props?.pageProps?.dehydratedState?.queries || [];
   for (const q of queries) {
-    const jobs = q.state?.data?.data?.pageData?.jobs;
-    if (Array.isArray(jobs) && jobs.length > 0) {
-      return jobs.map(parseJob).filter(Boolean);
+    const state = q.state?.data;
+    const candidates = [
+      state?.data?.pageData?.jobs,   // previous known path
+      state?.data?.jobs,             // flat jobs
+      state?.pageData?.jobs,         // one level up
+      state?.jobs,                   // direct
+      state?.data?.data?.jobs,       // extra nesting
+    ];
+    for (const jobs of candidates) {
+      if (Array.isArray(jobs) && jobs.length > 0) {
+        return jobs.map(parseJob).filter(Boolean);
+      }
     }
   }
 
+  // Last resort: walk ALL values in the dehydrated state looking for a jobs array
+  const allText = match[1];
+  const jobsArrayMatch = allText.match(/"jobs"\s*:\s*(\[[\s\S]{100,}?\])\s*[,}]/);
+  if (jobsArrayMatch) {
+    try {
+      const jobs = JSON.parse(jobsArrayMatch[1]);
+      if (Array.isArray(jobs) && jobs.length > 0 && jobs[0]?.headline) {
+        return jobs.map(parseJob).filter(Boolean);
+      }
+    } catch { /* skip */ }
+  }
+
+  console.warn(`[cutshort] no jobs found in __NEXT_DATA__ for this page`);
   return [];
 }
 
