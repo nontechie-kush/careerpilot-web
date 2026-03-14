@@ -141,6 +141,9 @@ import { scrapeNextLeap } from './nextleap';
 import { scrapeInstahyre } from './instahyre';
 import { scrapeFoundit } from './foundit';
 
+// Sources that consume ScraperAPI credits — skipped automatically when credits are low
+const SCRAPERAPI_SOURCES = new Set(['naukri', 'iimjobs', 'instahyre', 'yc', 'foundit']);
+
 export const SCRAPERS = [
   { source: 'greenhouse', fn: scrapeGreenhouse },
   { source: 'lever', fn: scrapeLever },
@@ -160,17 +163,45 @@ export const SCRAPERS = [
 ];
 
 /**
- * Run all scrapers with circuit breaker + upsert.
+ * Run all scrapers in parallel with circuit breaker + upsert.
  * Returns aggregate stats per source.
  *
- * Naukri receives active users so it can build preference-driven search clusters.
- * All other scrapers run unchanged.
+ * Pre-flight: checks ScraperAPI credits before starting — skips all
+ * ScraperAPI-dependent sources if fewer than 100 credits remain, so
+ * we never waste credits on a doomed run.
+ *
+ * Parallel execution: all scrapers start simultaneously. Each is capped
+ * at 5 minutes by the circuit breaker timeout. Total wall-clock time ≈
+ * slowest single scraper (~5 min) instead of sum of all (~75 min).
  */
 export async function runAllScrapers(supabase) {
   const results = {};
 
-  // Fetch active users for Naukri's preference-driven cluster builder.
-  // profiles is a 1:1 join (one parsed profile per user) — we need years_exp.
+  // ── Pre-flight: ScraperAPI credit check ──────────────────────────────────
+  let scraperApiOk = false;
+  const scraperKey = process.env.SCRAPERAPI_KEY;
+  if (scraperKey && scraperKey !== 'placeholder') {
+    try {
+      const res = await fetch(
+        `https://api.scraperapi.com/account?api_key=${scraperKey}`,
+        { signal: AbortSignal.timeout(6000) },
+      );
+      if (res.ok) {
+        const { requestCount, requestLimit } = await res.json();
+        const remaining = requestLimit - requestCount;
+        if (remaining < 100) {
+          console.warn(`[scraper] ScraperAPI low: ${remaining} credits left — skipping ScraperAPI sources`);
+        } else {
+          console.log(`[scraper] ScraperAPI OK: ${remaining} credits remaining (${requestCount}/${requestLimit} used)`);
+          scraperApiOk = true;
+        }
+      }
+    } catch (err) {
+      console.warn('[scraper] ScraperAPI preflight failed:', err.message, '— skipping ScraperAPI sources');
+    }
+  }
+
+  // ── Fetch active users for Naukri clusters ────────────────────────────────
   let activeUsers = [];
   try {
     const { data } = await supabase
@@ -184,29 +215,37 @@ export async function runAllScrapers(supabase) {
     console.warn('[scraper] could not fetch users for Naukri — using default clusters:', err.message);
   }
 
-  for (const { source, fn } of SCRAPERS) {
-    // Inject users into preference-aware scrapers via closure
-    const wrappedFn = source === 'naukri' ? () => fn(activeUsers) : fn;
-
-    try {
-      const cbResult = await withCircuitBreaker(source, wrappedFn);
-
-      if (cbResult?.skipped) {
-        results[source] = { skipped: true, reason: cbResult.reason };
-        continue;
-      }
-      if (cbResult?.error) {
-        results[source] = { error: cbResult.error, failures: cbResult.failures };
-        continue;
+  // ── Run all scrapers in parallel ──────────────────────────────────────────
+  await Promise.allSettled(
+    SCRAPERS.map(async ({ source, fn }) => {
+      // Skip ScraperAPI-dependent sources if credits are exhausted
+      if (SCRAPERAPI_SOURCES.has(source) && !scraperApiOk) {
+        results[source] = { skipped: true, reason: 'scraperapi_credits_exhausted' };
+        return;
       }
 
-      const jobs = Array.isArray(cbResult) ? cbResult : [];
-      const stats = await upsertJobs(supabase, jobs);
-      results[source] = { scraped: jobs.length, ...stats };
-    } catch (err) {
-      results[source] = { error: err.message };
-    }
-  }
+      const wrappedFn = source === 'naukri' ? () => fn(activeUsers) : fn;
+
+      try {
+        const cbResult = await withCircuitBreaker(source, wrappedFn);
+
+        if (cbResult?.skipped) {
+          results[source] = { skipped: true, reason: cbResult.reason };
+          return;
+        }
+        if (cbResult?.error) {
+          results[source] = { error: cbResult.error, failures: cbResult.failures };
+          return;
+        }
+
+        const jobs = Array.isArray(cbResult) ? cbResult : [];
+        const stats = await upsertJobs(supabase, jobs);
+        results[source] = { scraped: jobs.length, ...stats };
+      } catch (err) {
+        results[source] = { error: err.message };
+      }
+    }),
+  );
 
   return results;
 }
