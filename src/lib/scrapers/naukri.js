@@ -143,7 +143,9 @@ export function buildSearchClusters(users, maxClusters = 25) {
     }
   }
 
-  return clusters.length > 0 ? clusters : DEFAULT_CLUSTERS;
+  const final = clusters.length > 0 ? clusters : DEFAULT_CLUSTERS;
+  console.log(`[naukri] ${final.length} clusters: ${final.map(c => `${c.keyword}@${c.location}`).join(', ')}`);
+  return final;
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────

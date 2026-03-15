@@ -77,8 +77,10 @@ export async function upsertJob(supabase, job) {
   const now = new Date().toISOString();
 
   if (existing) {
-    const update = { last_seen_at: now, repost_count: (existing.repost_count || 0) + 1, is_active: true };
-    // Backfill posted_at if it was previously null and we now have a value
+    // Job still live — update last_seen_at only. Do NOT increment repost_count:
+    // re-seeing the same external_id means the job is still active, not that it
+    // was reposted. repost_count stays 0 unless we can detect a genuine re-listing.
+    const update = { last_seen_at: now, is_active: true };
     if (!existing.posted_at && job.posted_at) update.posted_at = job.posted_at;
     await supabase.from('jobs').update(update).eq('id', existing.id);
     return 'updated';
@@ -214,7 +216,7 @@ export async function runAllScrapers(supabase) {
         return;
       }
 
-      const wrappedFn = source === 'naukri' ? () => fn(activeUsers) : fn;
+      const wrappedFn = source === 'naukri' ? () => fn(activeUsers, { maxClusters: 50 }) : fn;
 
       try {
         const cbResult = await withCircuitBreaker(source, wrappedFn);
