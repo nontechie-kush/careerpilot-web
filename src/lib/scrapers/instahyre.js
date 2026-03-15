@@ -38,7 +38,7 @@ export async function scrapeInstahyre() {
     try {
       const fetchUrl = `https://api.scraperapi.com?api_key=${scraperKey}&url=${encodeURIComponent(searchUrl)}&render=true&country_code=in`;
 
-      const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(30000) });
+      const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(90000) });
       if (!res.ok) { console.warn(`[instahyre] HTTP ${res.status} for ${searchUrl}`); continue; }
 
       const html = await res.text();

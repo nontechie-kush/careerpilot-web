@@ -30,7 +30,7 @@ export async function scrapeIIMJobs() {
       // render=true required — IIMJobs is bot-protected and JS-renders job cards
       const fetchUrl = `https://api.scraperapi.com?api_key=${scraperKey}&url=${encodeURIComponent(searchUrl)}&render=true&country_code=in&wait=2000`;
 
-      const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(40000) });
+      const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(90000) });
       if (!res.ok) { console.warn(`[iimjobs] HTTP ${res.status}`); continue; }
 
       const html = await res.text();

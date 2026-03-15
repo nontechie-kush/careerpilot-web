@@ -90,7 +90,7 @@ async function fetchCluster(query, location, scraperKey) {
 
   const searchPage = `${BASE}/srp/results?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}`;
   const proxyUrl   = `https://api.scraperapi.com?api_key=${scraperKey}&url=${encodeURIComponent(searchPage)}&render=true&country_code=in&wait=2000`;
-  const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(40000) });
+  const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(90000) });
   if (!res.ok) throw new Error(`ScraperAPI HTTP ${res.status}`);
 
   const html = await res.text();

@@ -21,7 +21,7 @@ export async function scrapeHirect() {
     headers: scraperKey ? {} : {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
     },
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(90000),
   });
 
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

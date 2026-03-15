@@ -1,113 +1,123 @@
 /**
- * Ashby scraper — unofficial but stable public API
- * POST https://api.ashbyhq.com/posting-public.list
- * Body: { organizationHostedJobsPageName: "company-slug" }
+ * Ashby scraper — ScraperAPI renders jobs.ashbyhq.com/{slug}, parse stable CSS classes.
  *
- * Used by: Anthropic, OpenAI, Linear, Ramp, Vercel, Replit, Scale, Mistral, etc.
+ * Ashby's posting-public.list API now requires auth (401 for all orgs as of Mar 2026).
+ * Their job board SPA (Vite) renders job cards with stable Ashby-prefixed CSS classes:
+ *   .ashby-job-posting-brief-title   — job title
+ *   .ashby-job-posting-brief-details — "Department • Location • Type • Remote"
+ *
+ * Each company = 1 ScraperAPI credit (render=true).
+ * 15 companies × 4 runs/day = 60 credits/day.
  */
 
-import { stripHtml, detectRemote, makeDescHash } from './index';
+import { load } from 'cheerio';
+import { detectRemote, makeDescHash } from './index';
 
+// Top 15 companies by relevance — PM + tech roles most likely
 const COMPANIES = [
-  // AI / frontier companies
+  // AI / frontier
   ['anthropic', 'Anthropic', 'anthropic.com'],
-  ['openai', 'OpenAI', 'openai.com'],
-  ['mistral', 'Mistral AI', 'mistral.ai'],
-  ['cohere', 'Cohere', 'cohere.com'],
-  ['together-ai', 'Together AI', 'together.ai'],
+  ['openai',    'OpenAI',    'openai.com'],
   ['perplexity-ai', 'Perplexity AI', 'perplexity.ai'],
-  ['runway', 'Runway ML', 'runwayml.com'],
-  ['scale-ai', 'Scale AI', 'scale.com'],
+  ['scale-ai',  'Scale AI',  'scale.com'],
+  ['runway',    'Runway ML', 'runwayml.com'],
   // Dev tools / infra
-  ['replit', 'Replit', 'replit.com'],
-  ['linear', 'Linear', 'linear.app'],
-  ['vercel', 'Vercel', 'vercel.com'],
-  ['cursor', 'Cursor', 'cursor.com'],
-  ['posthog', 'PostHog', 'posthog.com'],
-  ['graphite', 'Graphite', 'graphite.dev'],
-  ['hex', 'Hex', 'hex.tech'],
-  ['turso', 'Turso', 'turso.tech'],
-  ['resend', 'Resend', 'resend.com'],
-  ['raycast', 'Raycast', 'raycast.com'],
-  ['warp', 'Warp', 'warp.dev'],
-  ['clerk', 'Clerk', 'clerk.com'],
-  ['neon', 'Neon', 'neon.tech'],
-  ['liveblocks', 'Liveblocks', 'liveblocks.io'],
-  ['inngest', 'Inngest', 'inngest.com'],
-  ['stytch', 'Stytch', 'stytch.com'],
-  ['trigger', 'Trigger.dev', 'trigger.dev'],
+  ['linear',    'Linear',    'linear.app'],
+  ['vercel',    'Vercel',    'vercel.com'],
+  ['replit',    'Replit',    'replit.com'],
+  ['posthog',   'PostHog',   'posthog.com'],
+  ['raycast',   'Raycast',   'raycast.com'],
   // Fintech / growth
-  ['ramp', 'Ramp', 'ramp.com'],
-  ['dbt-labs', 'dbt Labs', 'getdbt.com'],
-  ['anduril', 'Anduril', 'anduril.com'],
-  ['sardine', 'Sardine', 'sardine.ai'],
+  ['ramp',      'Ramp',      'ramp.com'],
+  ['cursor',    'Cursor',    'cursor.com'],
   // India — modern startups on Ashby
   ['smallcase', 'Smallcase', 'smallcase.com'],
-  ['fi-money', 'Fi', 'fi.money'],
-  ['setu', 'Setu', 'setu.co'],
-  ['jar', 'Jar', 'jar.money'],
+  ['fi-money',  'Fi',        'fi.money'],
+  ['setu',      'Setu',      'setu.co'],
 ];
 
-const ENDPOINT = 'https://api.ashbyhq.com/posting-public.list';
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const SCRAPER_API = 'https://api.scraperapi.com';
+const BASE        = 'https://jobs.ashbyhq.com';
+const sleep       = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function scrapeAshby() {
+  const scraperKey = process.env.SCRAPERAPI_KEY;
+  if (!scraperKey || scraperKey === 'placeholder') {
+    console.log('[ashby] no SCRAPERAPI_KEY — skipping');
+    return [];
+  }
+
   const jobs = [];
 
   for (const [slug, company, domain] of COMPANIES) {
     try {
-      const res = await fetch(ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'CareerPilot/1.0',
-        },
-        body: JSON.stringify({ organizationHostedJobsPageName: slug }),
-        signal: AbortSignal.timeout(8000),
-      });
+      const targetUrl = `${BASE}/${slug}`;
+      const proxyUrl  = `${SCRAPER_API}?api_key=${scraperKey}&url=${encodeURIComponent(targetUrl)}&render=true&wait=4000`;
 
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(60000) });
       if (!res.ok) {
-        if (res.status !== 404) console.warn(`[ashby] ${slug}: HTTP ${res.status}`);
-        await sleep(200);
+        console.warn(`[ashby] ${slug}: HTTP ${res.status}`);
+        await sleep(500);
         continue;
       }
 
-      const data = await res.json();
-      // API returns { results: [...] } but has been observed returning { jobs: [...] } or { postings: [...] }
-      const listings = data.results || data.jobs || data.postings || [];
+      const html = await res.text();
+      const $ = load(html);
+      const parsed = extractAshbyJobs($, slug, company, domain);
+      jobs.push(...parsed);
 
-      for (const job of listings) {
-        const location = job.locationName || job.location?.locationStr || '';
-        const desc = stripHtml(job.descriptionHtml || '');
-
-        jobs.push({
-          source: 'ashby',
-          external_id: job.id,
-          title: job.title,
-          company,
-          company_domain: domain,
-          description: desc.slice(0, 8000),
-          requirements: [],
-          location,
-          remote_type: detectRemote(`${location} ${job.isRemote ? 'remote' : ''}`),
-          apply_url: job.jobUrl || `https://jobs.ashbyhq.com/${slug}/${job.id}`,
-          apply_type: 'ashby',
-          department: job.department?.name || job.team?.name || null,
-          company_stage: null,
-          posted_at: job.publishedAt || null,
-          salary_min: job.compensationTierSummary?.minValue ?? null,
-          salary_max: job.compensationTierSummary?.maxValue ?? null,
-          salary_currency: job.compensationTierSummary?.currency || 'USD',
-          description_hash: makeDescHash(company, job.title, desc),
-        });
-      }
-
-      await sleep(200);
+      console.log(`[ashby] ${slug}: ${parsed.length} jobs`);
+      await sleep(500);
     } catch (err) {
       console.warn(`[ashby] ${slug}: ${err.message}`);
     }
   }
 
-  console.log(`[ashby] scraped ${jobs.length} jobs`);
+  console.log(`[ashby] total: ${jobs.length} jobs`);
+  return jobs;
+}
+
+function extractAshbyJobs($, slug, company, domain) {
+  const jobs = [];
+
+  // Ashby renders job cards with stable prefixed class names — reliable across deploys
+  $('a[href*="/' + slug + '/"]').each((_, el) => {
+    const $el   = $(el);
+    const title = $el.find('.ashby-job-posting-brief-title').text().trim();
+    if (!title) return;
+
+    const details  = $el.find('.ashby-job-posting-brief-details p').text().trim();
+    // details format: "Department • Location • Full time • Remote"
+    const parts    = details.split('•').map((s) => s.trim());
+    const location = parts[1] || 'Unknown';
+    const isRemote = details.toLowerCase().includes('remote');
+
+    const href   = $el.attr('href') || '';
+    const jobId  = href.split('/').filter(Boolean).pop() || href;
+    const applyUrl = href.startsWith('http') ? href : `${BASE}${href}`;
+    const desc   = `${title} at ${company} — ${details}`;
+
+    jobs.push({
+      source:           'ashby',
+      external_id:      jobId,
+      title,
+      company,
+      company_domain:   domain,
+      description:      desc,
+      requirements:     [],
+      location,
+      remote_type:      detectRemote(location + (isRemote ? ' remote' : '')),
+      apply_url:        applyUrl,
+      apply_type:       'ashby',
+      department:       parts[0] || null,
+      company_stage:    null,
+      posted_at:        null,
+      salary_min:       null,
+      salary_max:       null,
+      salary_currency:  'USD',
+      description_hash: makeDescHash(company, title, desc),
+    });
+  });
+
   return jobs;
 }

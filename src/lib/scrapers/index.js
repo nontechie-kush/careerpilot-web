@@ -129,37 +129,30 @@ import { scrapeGreenhouse } from './greenhouse';
 import { scrapeLever } from './lever';
 import { scrapeAshby } from './ashby';
 import { scrapeRemotive } from './remotive';
-import { scrapeYC } from './yc';
 import { scrapeCutshort } from './cutshort';
 import { scrapeHirect } from './hirect';
 import { scrapeWellfound } from './wellfound';
 import { scrapeNaukri } from './naukri';
 import { scrapeIIMJobs } from './iimjobs';
-import { scrapeArc } from './arc';
-import { scrapeTopStartups } from './topstartups';
-import { scrapeNextLeap } from './nextleap';
 import { scrapeInstahyre } from './instahyre';
 import { scrapeFoundit } from './foundit';
 
 // Sources that consume ScraperAPI credits — skipped automatically when credits are low
-const SCRAPERAPI_SOURCES = new Set(['naukri', 'iimjobs', 'instahyre', 'yc', 'foundit']);
+const SCRAPERAPI_SOURCES = new Set(['naukri', 'iimjobs', 'instahyre', 'foundit', 'hirect', 'ashby']);
 
 export const SCRAPERS = [
   { source: 'greenhouse', fn: scrapeGreenhouse },
   { source: 'lever', fn: scrapeLever },
-  { source: 'ashby', fn: scrapeAshby },
+  { source: 'ashby', fn: scrapeAshby },   // ScraperAPI renders Ashby SPA
   { source: 'remotive', fn: scrapeRemotive },
-  { source: 'yc', fn: scrapeYC },
   { source: 'cutshort', fn: scrapeCutshort },
-  { source: 'foundit', fn: scrapeFoundit },   // replaced Hirist (API returns 401)
+  { source: 'foundit', fn: scrapeFoundit },
   { source: 'hirect', fn: scrapeHirect },
   { source: 'wellfound', fn: scrapeWellfound },
   { source: 'naukri', fn: scrapeNaukri },
   { source: 'iimjobs', fn: scrapeIIMJobs },
   { source: 'instahyre', fn: scrapeInstahyre },
-  { source: 'arc', fn: scrapeArc },
-  { source: 'topstartups', fn: scrapeTopStartups },
-  { source: 'nextleap', fn: scrapeNextLeap },
+  // arc, yc, nextleap, topstartups: dropped — async-loaded SPAs with no public API
 ];
 
 /**
