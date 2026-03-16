@@ -30,7 +30,7 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="mobile-container">
-    <div className="h-dvh bg-gray-50 dark:bg-slate-950 flex flex-col overflow-hidden">
+    <div className="h-dvh bg-gray-50 dark:bg-slate-950 flex flex-col overflow-hidden" style={{ overscrollBehaviorY: 'none' }}>
       {/* Page content — bottom padding clears the nav + iPhone home-indicator */}
       <main
         className="flex-1 overflow-y-auto overscroll-contain"
