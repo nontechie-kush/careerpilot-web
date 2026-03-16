@@ -61,6 +61,7 @@ export default function SignupPage() {
   };
 
   return (
+    <div className="mobile-container">
     <div className="min-h-dvh flex flex-col bg-gray-50 dark:bg-slate-950">
       {/* Compact hero — logo + tagline only */}
       <div
@@ -189,6 +190,7 @@ export default function SignupPage() {
           <Link href="/privacy" className="underline hover:text-gray-600">Privacy Policy</Link>
         </p>
       </motion.div>
+    </div>
     </div>
   );
 }

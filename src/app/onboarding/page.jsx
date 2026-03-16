@@ -814,6 +814,7 @@ export default function OnboardingPage() {
   };
 
   return (
+    <div className="mobile-container">
     <div className="h-dvh flex flex-col bg-gray-50 dark:bg-slate-950 overflow-hidden">
       {/* Progress header — hidden on welcome screen */}
       <div className={`px-6 header-safe-top pb-4 ${step === 0 ? 'invisible pointer-events-none' : ''}`}>
@@ -862,6 +863,7 @@ export default function OnboardingPage() {
           </motion.div>
         </AnimatePresence>
       </div>
+    </div>
     </div>
   );
 }

@@ -29,6 +29,7 @@ export default function DashboardLayout({ children }) {
   if (!ready) return null;
 
   return (
+    <div className="mobile-container">
     <div className="h-dvh bg-gray-50 dark:bg-slate-950 flex flex-col overflow-hidden">
       {/* Page content — bottom padding clears the nav + iPhone home-indicator */}
       <main
@@ -90,6 +91,7 @@ export default function DashboardLayout({ children }) {
           </div>
         </nav>
       </div>
+    </div>
     </div>
   );
 }

@@ -27,9 +27,7 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-gray-50 dark:bg-slate-950`}>
         <Providers>
-          <div className="mobile-container">
-            {children}
-          </div>
+          {children}
         </Providers>
       </body>
     </html>

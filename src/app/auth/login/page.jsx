@@ -64,6 +64,7 @@ export default function LoginPage() {
   };
 
   return (
+    <div className="mobile-container">
     <div className="min-h-dvh flex flex-col bg-gray-50 dark:bg-slate-950">
       {/* Header gradient */}
       <div
@@ -191,6 +192,7 @@ export default function LoginPage() {
           By continuing, you agree to our Terms &amp; Privacy Policy
         </p>
       </motion.div>
+    </div>
     </div>
   );
 }
