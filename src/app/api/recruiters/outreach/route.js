@@ -44,7 +44,7 @@ export async function POST(request) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (matchError) throw matchError;
+    if (matchError) throw new Error(`Match query failed: ${matchError.message}`);
     if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
 
     // Return cached draft if available (parse stored JSON)
@@ -91,18 +91,30 @@ export async function POST(request) {
       mutualConnections,
     );
 
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is not set');
+    }
+
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 600,
+      system: 'You output only valid JSON. No markdown, no code fences, no commentary. Just the JSON object.',
       messages: [{ role: 'user', content: prompt }],
     });
 
     const raw = response.content[0]?.text?.trim() || '';
+    // Strip markdown code fences if Claude wrapped the JSON
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     let parsed;
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.parse(cleaned);
     } catch {
-      throw new Error('Claude returned malformed JSON');
+      // Last resort: extract the first {...} block
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { parsed = JSON.parse(match[0]); } catch {}
+      }
+      if (!parsed) throw new Error(`Claude returned malformed JSON: ${raw.slice(0, 100)}`);
     }
 
     const { connection_note, dm_subject, dm_body } = parsed;
