@@ -113,7 +113,7 @@ button, a, [role="button"] {
   transform: translateX(-50%);
   width: 100%;
   max-width: 430px;
-  z-index: 50;
+  z-index: 40;
 }
 
 /* Gradient text */
