@@ -3,21 +3,35 @@
 /**
  * /dashboard/referrals
  *
- * Recruiter Targets + Follow-Ups tab.
- * Fetches real recruiter_matches from /api/recruiters/match.
+ * Recruiter Targets + Follow-Ups.
+ * Now supports multi-select + extension-powered LinkedIn automation.
  *
- * Tabs:
- *   Targets — pending/uncontacted matches, sorted by relevance_score
- *   Follow-Ups — messaged matches with no reply after 5+ days
+ * Flow:
+ *   1. User taps "Select" → checkboxes appear on uncontacted cards
+ *   2. User picks 1–15 contacts → sticky bar appears
+ *   3. Tap CTA → ReviewSheet opens (notes editing, 200 char limit)
+ *   4. "Start Automation" → queues jobs + triggers Chrome extension
+ *   5. Progress shown live per contact
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Clock, ChevronRight, Users, Bell, RefreshCw, Zap, Sparkles } from 'lucide-react';
+import {
+  Send, Clock, ChevronRight, Users, Bell, RefreshCw,
+  Zap, Sparkles, CheckSquare, Square, X, Edit2, AlertTriangle,
+  Chrome, CheckCircle2,
+} from 'lucide-react';
 import OutreachFlow from '@/components/OutreachFlow';
 
-// ── Deterministic avatar color from string ────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const MAX_BATCH = 15;
+const NOTE_MAX = 200;
+const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID || ''; // set after publish
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+
 const AVATAR_COLORS = [
   'bg-violet-600', 'bg-blue-600', 'bg-emerald-600', 'bg-amber-600',
   'bg-rose-600', 'bg-indigo-600', 'bg-cyan-600', 'bg-pink-600',
@@ -28,17 +42,11 @@ function avatarColor(str = '') {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
-// ── Format a DB recruiter_match into UI shape ─────────────────────────────
 function formatMatch(rm) {
   const rec = rm.recruiters;
-  const initials = rec.name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = rec.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   return {
-    id: rm.id,            // match UUID — used for navigation + API calls
+    id: rm.id,
     recruiterId: rec.id,
     name: rec.name,
     title: rec.title || 'Recruiter',
@@ -57,28 +65,85 @@ function formatMatch(rm) {
   };
 }
 
-// ── How many days since outreach ──────────────────────────────────────────
+function linkedinHandle(url = '') {
+  const match = url.match(/linkedin\.com\/in\/([^/?#]+)/);
+  return match ? match[1] : null;
+}
+
 function daysSince(isoDate) {
   if (!isoDate) return 0;
   return Math.floor((Date.now() - new Date(isoDate).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-// ── Components ────────────────────────────────────────────────────────────
+function isExtensionInstalled() {
+  return typeof chrome !== 'undefined' && chrome.runtime && !!EXTENSION_ID;
+}
 
-function RecruiterCard({ match, onOutreach }) {
+// ── Automation status helpers ─────────────────────────────────────────────────
+
+const STATUS_LABEL = {
+  pending:          'Queued',
+  processing:       'Sending…',
+  sent:             'Sent',
+  dm_sent:          'DM sent',
+  limit_hit:        'Limit hit',
+  failed:           'Failed',
+  interrupted:      'Interrupted',
+  cancelled:        'Cancelled',
+  already_pending:  'Already pending',
+  profile_not_found:'Not found',
+  restricted:       'Restricted',
+  account_restricted: 'Account restricted',
+};
+const STATUS_COLOR = {
+  pending:          'text-violet-600 dark:text-violet-400',
+  processing:       'text-amber-600 dark:text-amber-400',
+  sent:             'text-emerald-600 dark:text-emerald-400',
+  dm_sent:          'text-emerald-600 dark:text-emerald-400',
+  limit_hit:        'text-red-500',
+  failed:           'text-red-500',
+  interrupted:      'text-orange-500',
+  cancelled:        'text-gray-400',
+  already_pending:  'text-blue-500',
+  profile_not_found:'text-red-500',
+  restricted:       'text-orange-500',
+  account_restricted:'text-red-600',
+};
+
+// ── RecruiterCard ─────────────────────────────────────────────────────────────
+
+function RecruiterCard({ match, onOutreach, selectionMode, selected, onToggleSelect, automationStatus }) {
   const isMessaged = match.status === 'messaged';
-  const isReplied = match.status === 'replied';
+  const isReplied  = match.status === 'replied';
+  const canSelect  = selectionMode && !isMessaged && !isReplied && linkedinHandle(match.linkedin_url);
+  const jobStatus  = automationStatus?.[match.id];
 
   return (
-    <div className="card p-4">
+    <div
+      className={`card p-4 transition-all ${selected ? 'ring-2 ring-violet-500' : ''}`}
+      onClick={canSelect ? () => onToggleSelect(match.id) : undefined}
+    >
       <div className="flex items-start gap-3">
+        {/* Checkbox in selection mode */}
+        {selectionMode && (
+          <div className="shrink-0 mt-1">
+            {canSelect ? (
+              selected
+                ? <CheckSquare className="w-5 h-5 text-violet-600" />
+                : <Square className="w-5 h-5 text-gray-300 dark:text-gray-600" />
+            ) : (
+              <Square className="w-5 h-5 text-gray-200 dark:text-gray-700 opacity-40" />
+            )}
+          </div>
+        )}
+
         <div className={`w-12 h-12 rounded-full ${match.avatarColor} flex items-center justify-center text-white font-semibold text-sm shrink-0`}>
           {match.avatar}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <Link href={`/dashboard/referrals/${match.id}`} className="flex-1 min-w-0">
+            <Link href={`/dashboard/referrals/${match.id}`} className="flex-1 min-w-0" onClick={e => selectionMode && e.preventDefault()}>
               <p className="font-semibold text-gray-900 dark:text-white text-sm leading-snug">{match.name}</p>
               <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 truncate">{match.title}</p>
               {match.company && (
@@ -99,38 +164,47 @@ function RecruiterCard({ match, onOutreach }) {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 mt-3">
-            {isReplied ? (
-              <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs font-medium">
-                <Send className="w-3.5 h-3.5" />
-                Replied
-              </div>
-            ) : isMessaged ? (
-              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
-                <Send className="w-3.5 h-3.5" />
-                Message sent
-              </div>
-            ) : (
-              <button
-                onClick={() => onOutreach(match)}
-                className="flex items-center gap-1.5 bg-violet-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-colors active:scale-95"
+          {/* Automation status inline */}
+          {jobStatus && (
+            <p className={`text-xs font-medium mt-2 ${STATUS_COLOR[jobStatus] || 'text-gray-400'}`}>
+              {jobStatus === 'processing' && <span className="inline-block w-2 h-2 bg-amber-400 rounded-full mr-1.5 animate-pulse" />}
+              {STATUS_LABEL[jobStatus] || jobStatus}
+            </p>
+          )}
+
+          {!selectionMode && (
+            <div className="flex items-center gap-2 mt-3">
+              {isReplied ? (
+                <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs font-medium">
+                  <Send className="w-3.5 h-3.5" />Replied
+                </div>
+              ) : isMessaged ? (
+                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+                  <Send className="w-3.5 h-3.5" />Message sent
+                </div>
+              ) : (
+                <button
+                  onClick={() => onOutreach(match)}
+                  className="flex items-center gap-1.5 bg-violet-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-colors active:scale-95"
+                >
+                  <Send className="w-3.5 h-3.5" />Start Outreach
+                </button>
+              )}
+              <Link
+                href={`/dashboard/referrals/${match.id}`}
+                className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs"
               >
-                <Send className="w-3.5 h-3.5" />
-                Start Outreach
-              </button>
-            )}
-            <Link
-              href={`/dashboard/referrals/${match.id}`}
-              className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs"
-            >
-              View profile <ChevronRight className="w-3 h-3" />
-            </Link>
-          </div>
+                View profile <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+// ── FollowUpCard ──────────────────────────────────────────────────────────────
 
 function FollowUpCard({ match }) {
   const [expanded, setExpanded] = useState(false);
@@ -144,32 +218,22 @@ function FollowUpCard({ match }) {
           <div className={`w-9 h-9 rounded-full flex items-center justify-center ${needsFollowUp ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
             {needsFollowUp
               ? <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              : <Send className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            }
+              : <Send className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
           </div>
           <div>
             <p className="font-semibold text-gray-900 dark:text-white text-sm">{match.name}</p>
             <p className="text-gray-400 text-xs">
-              {match.company} · {needsFollowUp ? `No reply · ${since}d ago` : since === 0 ? 'Sent today' : `Sent ${since} day${since !== 1 ? 's' : ''} ago`}
+              {match.company} · {needsFollowUp ? `No reply · ${since}d ago` : since === 0 ? 'Sent today' : `Sent ${since}d ago`}
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-violet-600 dark:text-violet-400 text-xs font-medium shrink-0"
-        >
+        <button onClick={() => setExpanded(!expanded)} className="text-violet-600 dark:text-violet-400 text-xs font-medium shrink-0">
           {expanded ? 'Hide' : 'View'}
         </button>
       </div>
-
       <AnimatePresence>
         {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800 space-y-3">
               <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-3">
                 <p className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-line leading-relaxed">
@@ -185,14 +249,8 @@ function FollowUpCard({ match }) {
                   rel="noopener noreferrer"
                   className="btn-gradient py-3 px-4 rounded-xl text-white text-sm font-semibold flex items-center gap-2 w-full justify-center"
                 >
-                  <Send className="w-4 h-4" />
-                  Send Follow-Up on LinkedIn
+                  <Send className="w-4 h-4" />Send Follow-Up on LinkedIn
                 </a>
-              )}
-              {!needsFollowUp && (
-                <p className="text-xs text-gray-400 text-center">
-                  Follow-up reminder will appear after 5 days if no reply
-                </p>
               )}
             </div>
           </motion.div>
@@ -202,8 +260,7 @@ function FollowUpCard({ match }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────
-// ── Daily capsule card ─────────────────────────────────────────────────────
+// ── CapsuleCard ───────────────────────────────────────────────────────────────
 
 function CapsuleCard({ item, onOutreach, isSent }) {
   const rec = item.recruiter;
@@ -223,36 +280,26 @@ function CapsuleCard({ item, onOutreach, isSent }) {
             <p className="font-semibold text-gray-900 dark:text-white text-sm">{rec.name}</p>
             <p className="text-gray-500 dark:text-gray-400 text-xs truncate">{rec.title} · {rec.company}</p>
           </Link>
-
-          {/* Pilot's take */}
           <p className="text-gray-600 dark:text-gray-300 text-xs mt-2 leading-relaxed line-clamp-2">
             {item.pilot_recommendation}
           </p>
-
           <div className="flex items-center gap-2 mt-3">
             {isSent ? (
               <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
-                <Send className="w-3.5 h-3.5" />
-                Sent
+                <Send className="w-3.5 h-3.5" />Sent
               </div>
             ) : (
               <button
                 onClick={() => onOutreach({
-                  id: item.match_id,
-                  name: rec.name,
-                  company: rec.company,
-                  linkedin_url: rec.linkedin_url,
-                  avatar: initials,
-                  avatarColor: color,
+                  id: item.match_id, name: rec.name, company: rec.company,
+                  linkedin_url: rec.linkedin_url, avatar: initials, avatarColor: color,
                   pilot_recommendation: item.pilot_recommendation,
-                  send_time: item.send_time,
-                  send_time_label: item.send_time_label,
+                  send_time: item.send_time, send_time_label: item.send_time_label,
                   channel: item.channel,
                 })}
                 className="flex items-center gap-1.5 bg-violet-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-colors active:scale-95"
               >
-                <Zap className="w-3.5 h-3.5" />
-                Reach out
+                <Zap className="w-3.5 h-3.5" />Reach out
               </button>
             )}
           </div>
@@ -262,17 +309,306 @@ function CapsuleCard({ item, onOutreach, isSent }) {
   );
 }
 
+// ── ReviewSheet ───────────────────────────────────────────────────────────────
+
+function ReviewSheet({ selectedMatches, onClose, onStartAutomation }) {
+  const [notes, setNotes] = useState({});
+  const [loadingDrafts, setLoadingDrafts] = useState(true);
+  const [editingId, setEditingId] = useState(null);
+  const [starting, setStarting] = useState(false);
+  const extensionInstalled = isExtensionInstalled();
+
+  // Fetch AI-generated notes for all selected matches
+  useEffect(() => {
+    async function fetchDrafts() {
+      setLoadingDrafts(true);
+      const results = {};
+      await Promise.all(
+        selectedMatches.map(async (match) => {
+          try {
+            const res = await fetch('/api/recruiters/outreach', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ match_id: match.id }),
+            });
+            const json = await res.json();
+            results[match.id] = {
+              connection_note: json.connection_note || '',
+              dm_subject: json.dm_subject || '',
+              dm_body: json.dm_body || '',
+            };
+          } catch {
+            results[match.id] = { connection_note: '', dm_subject: '', dm_body: '' };
+          }
+        })
+      );
+      setNotes(results);
+      setLoadingDrafts(false);
+    }
+    fetchDrafts();
+  }, [selectedMatches]);
+
+  function applyToAll(note) {
+    const updated = {};
+    selectedMatches.forEach(m => {
+      updated[m.id] = { ...notes[m.id], connection_note: note };
+    });
+    setNotes(prev => ({ ...prev, ...updated }));
+  }
+
+  async function handleStart() {
+    if (!extensionInstalled) return;
+    setStarting(true);
+
+    const jobs = selectedMatches.map(match => ({
+      match_id:        match.id,
+      linkedin_handle: linkedinHandle(match.linkedin_url),
+      connection_note: (notes[match.id]?.connection_note || '').slice(0, NOTE_MAX),
+      dm_subject:      notes[match.id]?.dm_subject || '',
+      dm_body:         notes[match.id]?.dm_body || '',
+    })).filter(j => j.linkedin_handle);
+
+    try {
+      // Queue jobs in DB
+      await fetch('/api/outreach/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobs }),
+      });
+
+      // Trigger extension
+      if (EXTENSION_ID) {
+        chrome.runtime.sendMessage(EXTENSION_ID, { type: 'PILOT_START_AUTOMATION' });
+      }
+
+      onStartAutomation(jobs);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setStarting(false);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 z-50 flex items-end"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        className="w-full bg-white dark:bg-slate-900 rounded-t-2xl max-h-[90dvh] flex flex-col"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 dark:border-slate-800">
+          <div>
+            <h2 className="font-bold text-gray-900 dark:text-white text-base">Review before sending</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">
+              {selectedMatches.length} connection request{selectedMatches.length !== 1 ? 's' : ''} · Edit notes before Pilot sends
+            </p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Notes list */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {loadingDrafts ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <div className="w-6 h-6 spinner" />
+              <p className="text-gray-400 text-sm">Pilot is writing your notes…</p>
+            </div>
+          ) : (
+            selectedMatches.map((match, i) => {
+              const note = notes[match.id]?.connection_note || '';
+              const overLimit = note.length > NOTE_MAX;
+              const isEditing = editingId === match.id;
+
+              return (
+                <div key={match.id} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-7 h-7 rounded-full ${match.avatarColor} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                      {match.avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{match.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{match.company}</p>
+                    </div>
+                    <button
+                      onClick={() => setEditingId(isEditing ? null : match.id)}
+                      className="p-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 shrink-0"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-gray-500" />
+                    </button>
+                  </div>
+
+                  {isEditing ? (
+                    <div className="space-y-1">
+                      <textarea
+                        value={note}
+                        onChange={e => setNotes(prev => ({
+                          ...prev,
+                          [match.id]: { ...prev[match.id], connection_note: e.target.value },
+                        }))}
+                        className={`w-full text-sm bg-gray-50 dark:bg-slate-800 border rounded-xl p-3 resize-none text-gray-900 dark:text-white outline-none focus:ring-2 ${overLimit ? 'border-red-400 focus:ring-red-400/30' : 'border-gray-200 dark:border-slate-700 focus:ring-violet-400/30'}`}
+                        rows={4}
+                        maxLength={220}
+                      />
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-medium ${overLimit ? 'text-red-500' : 'text-gray-400'}`}>
+                          {note.length}/{NOTE_MAX}
+                          {overLimit && ' — too long'}
+                        </span>
+                        {i === 0 && selectedMatches.length > 1 && (
+                          <button
+                            onClick={() => applyToAll(note)}
+                            className="text-xs text-violet-600 dark:text-violet-400 font-medium"
+                          >
+                            Apply to all
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-3">
+                      <p className={`text-xs leading-relaxed ${overLimit ? 'text-red-400' : 'text-gray-600 dark:text-gray-300'}`}>
+                        {note || 'Loading…'}
+                      </p>
+                      {overLimit && (
+                        <p className="text-red-500 text-xs mt-1">Tap edit — note exceeds 200 chars</p>
+                      )}
+                      <p className="text-gray-400 text-[10px] mt-1.5">{note.length}/{NOTE_MAX}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+
+          {/* Disclaimer */}
+          {!loadingDrafts && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl p-3 flex gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+                CareerPilot automates this using your own Chrome browser and your LinkedIn session.
+                We never store your LinkedIn password or credentials.
+                Keep outreach genuine — LinkedIn may restrict accounts that spam.
+                Make sure you&apos;re signed into the right LinkedIn account.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* CTA */}
+        <div className="px-5 pb-4 pt-3 border-t border-gray-100 dark:border-slate-800 space-y-2">
+          {!extensionInstalled ? (
+            <div className="space-y-2">
+              <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-3 flex gap-2">
+                <Chrome className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-violet-800 dark:text-violet-200">
+                  Install the CareerPilot Chrome extension to automate sending.
+                  Without it, you&apos;ll need to send each message manually.
+                </p>
+              </div>
+              <button
+                disabled={loadingDrafts}
+                onClick={handleStart}
+                className="btn-gradient w-full py-4 rounded-xl text-white font-semibold text-sm disabled:opacity-50"
+              >
+                Get Extension — Automate Sending
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleStart}
+              disabled={loadingDrafts || starting || selectedMatches.some(m => (notes[m.id]?.connection_note || '').length > NOTE_MAX)}
+              className="btn-gradient w-full py-4 rounded-xl text-white font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {starting ? (
+                <><div className="w-4 h-4 spinner" />Starting…</>
+              ) : (
+                <>Start Automation — {selectedMatches.length} message{selectedMatches.length !== 1 ? 's' : ''}</>
+              )}
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── AutomationProgressBanner ──────────────────────────────────────────────────
+
+function AutomationProgressBanner({ statuses, onDismiss }) {
+  const total   = Object.keys(statuses).length;
+  const sent    = Object.values(statuses).filter(s => s === 'sent' || s === 'dm_sent').length;
+  const failed  = Object.values(statuses).filter(s => ['failed', 'limit_hit', 'interrupted', 'cancelled', 'restricted', 'account_restricted'].includes(s)).length;
+  const running = Object.values(statuses).some(s => s === 'pending' || s === 'processing');
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-5 mb-3"
+    >
+      <div className={`rounded-xl p-4 border ${running ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800/40' : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/40'}`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            {running ? (
+              <div className="w-3 h-3 rounded-full bg-violet-600 animate-pulse" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            )}
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+              {running ? 'Pilot is sending…' : 'Automation complete'}
+            </p>
+          </div>
+          {!running && (
+            <button onClick={onDismiss} className="p-1">
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-gray-600 dark:text-gray-300">
+          {sent} sent · {failed} failed · {total - sent - failed} remaining
+        </p>
+        {/* Progress bar */}
+        <div className="mt-2 h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-violet-500 to-blue-500 rounded-full transition-all duration-500"
+            style={{ width: `${(sent / total) * 100}%` }}
+          />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ReferralsPage() {
-  const [matches, setMatches] = useState([]);
-  const [capsule, setCapsule] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [matches, setMatches]         = useState([]);
+  const [capsule, setCapsule]         = useState([]);
+  const [loading, setLoading]         = useState(true);
   const [capsuleLoading, setCapsuleLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [tab, setTab] = useState('targets');
+  const [error, setError]             = useState(null);
+  const [tab, setTab]                 = useState('targets');
   const [activeMatch, setActiveMatch] = useState(null);
-  const [sending, setSending] = useState(false);
+  const [sending, setSending]         = useState(false);
+
+  // Selection + automation state
+  const [selectionMode, setSelectionMode]   = useState(false);
+  const [selectedIds, setSelectedIds]       = useState(new Set());
+  const [reviewOpen, setReviewOpen]         = useState(false);
+  const [automationStatus, setAutomationStatus] = useState({}); // matchId → status string
+  const [showProgress, setShowProgress]     = useState(false);
 
   const loadMatches = useCallback(async () => {
     setLoading(true);
@@ -283,7 +619,7 @@ export default function ReferralsPage() {
         fetch('/api/recruiters/recommend', { cache: 'no-store' }),
       ]);
       const matchJson = await matchRes.json();
-      const capJson = await capRes.json();
+      const capJson   = await capRes.json();
       if (!matchRes.ok) throw new Error(matchJson.error || 'Failed to load');
       setMatches((matchJson.matches || []).map(formatMatch));
       setCapsule(capJson.capsule || []);
@@ -294,11 +630,10 @@ export default function ReferralsPage() {
     }
   }, []);
 
-  // Fetch next batch of Pilot picks (without reloading all matches)
   const fetchMoreCapsule = useCallback(async () => {
     setCapsuleLoading(true);
     try {
-      const res = await fetch('/api/recruiters/recommend', { cache: 'no-store' });
+      const res  = await fetch('/api/recruiters/recommend', { cache: 'no-store' });
       const json = await res.json();
       setCapsule(json.capsule || []);
     } finally {
@@ -308,17 +643,56 @@ export default function ReferralsPage() {
 
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
-  const capsuleIds = new Set(capsule.map((c) => c.match_id));
-  const targets = matches.filter((m) => m.status === 'pending' && !capsuleIds.has(m.id));
-  // Follow-ups = ALL messaged people (not just 5+ days) so user can see who they contacted
-  const followUps = matches.filter((m) => m.status === 'messaged');
-  const pendingFollowUps = followUps.filter(m => !m.reply_received_at && daysSince(m.outreach_sent_at) >= 5);
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
-  // Check if all capsule picks have been actioned (sent)
-  const capsuleSentIds = new Set(
-    matches.filter(m => m.status !== 'pending').map(m => m.id)
-  );
+  function exitSelection() {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }
+
+  function handleStartAutomation(jobs) {
+    // Initialise status for each queued job
+    const initial = {};
+    jobs.forEach(j => { initial[j.match_id] = 'pending'; });
+    setAutomationStatus(initial);
+    setShowProgress(true);
+    exitSelection();
+
+    // Poll for status updates (extension reports back via DB)
+    // Simple polling every 5s against /api/outreach/pending to infer progress
+    const poll = setInterval(async () => {
+      try {
+        const res  = await fetch('/api/outreach/queue-status', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        setAutomationStatus(json.statuses || {});
+        const allDone = Object.values(json.statuses || {}).every(
+          s => !['pending', 'processing'].includes(s)
+        );
+        if (allDone) clearInterval(poll);
+      } catch {}
+    }, 5000);
+
+    return () => clearInterval(poll);
+  }
+
+  const capsuleIds     = new Set(capsule.map(c => c.match_id));
+  const targets        = matches.filter(m => m.status === 'pending' && !capsuleIds.has(m.id));
+  const followUps      = matches.filter(m => m.status === 'messaged');
+  const pendingFUps    = followUps.filter(m => !m.reply_received_at && daysSince(m.outreach_sent_at) >= 5);
+  const capsuleSentIds = new Set(matches.filter(m => m.status !== 'pending').map(m => m.id));
   const allCapsuleSent = capsule.length > 0 && capsule.every(c => capsuleSentIds.has(c.match_id));
+
+  // Only uncontacted matches with a LinkedIn URL are selectable
+  const selectableTargets = targets.filter(m => linkedinHandle(m.linkedin_url));
+  const selectedMatches   = matches.filter(m => selectedIds.has(m.id));
+  const atBatchLimit      = selectedIds.size >= MAX_BATCH;
 
   const handleConfirmSend = async (message) => {
     if (!activeMatch) return;
@@ -329,9 +703,8 @@ export default function ReferralsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: activeMatch.id, status: 'messaged', message }),
       });
-      // Optimistically update local state
-      setMatches((prev) =>
-        prev.map((m) => m.id === activeMatch.id ? { ...m, status: 'messaged', outreach_draft: message } : m),
+      setMatches(prev =>
+        prev.map(m => m.id === activeMatch.id ? { ...m, status: 'messaged', outreach_draft: message } : m)
       );
     } finally {
       setSending(false);
@@ -347,51 +720,82 @@ export default function ReferralsPage() {
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">Referrals</h1>
               <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
-                {loading ? 'Loading…' : `${matches.length} matches · ${matches.filter((m) => m.status === 'messaged').length} messaged`}
+                {loading ? 'Loading…' : `${matches.length} matches · ${followUps.length} messaged`}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {pendingFollowUps.length > 0 && (
+              {pendingFUps.length > 0 && !selectionMode && (
                 <button
                   onClick={() => setTab('followups')}
                   className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-full text-xs font-semibold"
                 >
-                  <Bell className="w-3.5 h-3.5" />
-                  {pendingFollowUps.length} follow-up{pendingFollowUps.length !== 1 ? 's' : ''}
+                  <Bell className="w-3.5 h-3.5" />{pendingFUps.length} follow-up{pendingFUps.length !== 1 ? 's' : ''}
                 </button>
               )}
-              <button
-                onClick={loadMatches}
-                className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center"
-                title="Refresh"
-              >
-                <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
-              </button>
+              {!selectionMode ? (
+                <>
+                  {selectableTargets.length > 0 && (
+                    <button
+                      onClick={() => { setSelectionMode(true); setTab('targets'); }}
+                      className="flex items-center gap-1.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 px-3 py-1.5 rounded-full text-xs font-semibold"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />Select
+                    </button>
+                  )}
+                  <button onClick={loadMatches} className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center">
+                    <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+                  </button>
+                </>
+              ) : (
+                <button onClick={exitSelection} className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 text-sm font-medium px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-slate-800">
+                  <X className="w-4 h-4" />Cancel
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="flex gap-1 bg-gray-100 dark:bg-slate-800 rounded-xl p-1">
-            {[
-              { id: 'targets', label: `Targets (${targets.length + capsule.length})` },
-              { id: 'followups', label: `Follow-Ups (${followUps.length})` },
-            ].map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                  tab === t.id
-                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          {/* Selection mode hint */}
+          {selectionMode && (
+            <p className="text-xs text-violet-600 dark:text-violet-400 mb-3">
+              {selectedIds.size === 0
+                ? 'Tap contacts to select them for bulk outreach'
+                : `${selectedIds.size} selected${atBatchLimit ? ` (max ${MAX_BATCH})` : ''}`}
+            </p>
+          )}
+
+          {!selectionMode && (
+            <div className="flex gap-1 bg-gray-100 dark:bg-slate-800 rounded-xl p-1">
+              {[
+                { id: 'targets',  label: `Targets (${targets.length + capsule.length})` },
+                { id: 'followups',label: `Follow-Ups (${followUps.length})` },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                    tab === t.id
+                      ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
+        {/* Automation progress banner */}
+        <AnimatePresence>
+          {showProgress && Object.keys(automationStatus).length > 0 && (
+            <AutomationProgressBanner
+              statuses={automationStatus}
+              onDismiss={() => setShowProgress(false)}
+            />
+          )}
+        </AnimatePresence>
+
         <div className="px-5 py-4 space-y-3">
-          {/* Loading */}
           {loading && (
             <div className="flex flex-col items-center gap-3 py-16">
               <div className="w-8 h-8 spinner" />
@@ -399,109 +803,80 @@ export default function ReferralsPage() {
             </div>
           )}
 
-          {/* Error */}
           {!loading && error && (
             <div className="card p-5 text-center space-y-2">
               <p className="text-gray-500 dark:text-gray-400 font-medium">Hit a wall.</p>
               <p className="text-gray-400 text-sm">{error}</p>
-              <button onClick={loadMatches} className="text-violet-600 text-sm font-semibold">
-                Try again
-              </button>
+              <button onClick={loadMatches} className="text-violet-600 text-sm font-semibold">Try again</button>
             </div>
           )}
 
           {/* Targets tab */}
-          {!loading && !error && tab === 'targets' && (
+          {!loading && !error && (tab === 'targets' || selectionMode) && (
             <>
-              {/* Daily capsule */}
-              {capsule.length > 0 && (
+              {/* Capsule section — hidden in selection mode */}
+              {!selectionMode && capsule.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Zap className="w-4 h-4 text-violet-500" />
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Pilot's picks for today</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Pilot&apos;s picks for today</p>
                   </div>
                   {capsule.map(item => (
-                    <CapsuleCard
-                      key={item.match_id}
-                      item={item}
-                      onOutreach={setActiveMatch}
-                      isSent={capsuleSentIds.has(item.match_id)}
-                    />
+                    <CapsuleCard key={item.match_id} item={item} onOutreach={setActiveMatch} isSent={capsuleSentIds.has(item.match_id)} />
                   ))}
-
-                  {/* All capsule picks sent — motivate + offer more */}
                   {allCapsuleSent && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                       className="card p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-100 dark:border-emerald-800/40"
                     >
                       <div className="flex items-start gap-3">
                         <Sparkles className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                         <div className="flex-1">
                           <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                            You sent {capsule.length} DM{capsule.length !== 1 ? 's' : ''}. That's more than 90% of job seekers do in a week. — Pilot
+                            You sent {capsule.length} DM{capsule.length !== 1 ? 's' : ''}. That&apos;s more than 90% of job seekers do in a week. — Pilot
                           </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            Keep the momentum going. Send 3 more.
-                          </p>
-                          <button
-                            onClick={fetchMoreCapsule}
-                            disabled={capsuleLoading}
+                          <button onClick={fetchMoreCapsule} disabled={capsuleLoading}
                             className="mt-3 flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-60"
                           >
-                            {capsuleLoading ? (
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Zap className="w-3.5 h-3.5" />
-                            )}
+                            {capsuleLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
                             {capsuleLoading ? 'Loading…' : 'Send 3 more →'}
                           </button>
                         </div>
                       </div>
                     </motion.div>
                   )}
-
                   <div className="border-t border-gray-100 dark:border-slate-800 pt-3">
                     <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">All matches</p>
                   </div>
                 </div>
               )}
 
-              {targets.length > 0 && !capsule.length && (
-                <div className="card p-4 bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-900/20 dark:to-blue-900/20 border-violet-100 dark:border-violet-800/50">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-violet-500" />
-                    <p className="text-sm font-semibold text-violet-800 dark:text-violet-300">
-                      {targets.length} recruiter{targets.length !== 1 ? 's' : ''} matched to your profile
-                    </p>
-                  </div>
-                  <p className="text-violet-600 dark:text-violet-400 text-xs mt-1">
-                    Ranked by geography · specialization · seniority · reply rate
-                  </p>
-                </div>
-              )}
-
-              {targets.length === 0 && (
+              {targets.length === 0 && !capsule.length && (
                 <div className="text-center py-16">
                   <div className="text-4xl mb-3">🎯</div>
                   <p className="text-gray-500 dark:text-gray-400 font-medium">No targets yet</p>
-                  <p className="text-gray-400 text-sm mt-1">Complete your profile and we'll find the right recruiters.</p>
+                  <p className="text-gray-400 text-sm mt-1">Complete your profile and we&apos;ll find the right recruiters.</p>
                 </div>
               )}
 
-              {targets.map((match) => (
+              {targets.map(match => (
                 <RecruiterCard
                   key={match.id}
                   match={match}
                   onOutreach={setActiveMatch}
+                  selectionMode={selectionMode}
+                  selected={selectedIds.has(match.id)}
+                  onToggleSelect={(id) => {
+                    if (!selectedIds.has(id) && atBatchLimit) return;
+                    toggleSelect(id);
+                  }}
+                  automationStatus={automationStatus[match.id]}
                 />
               ))}
             </>
           )}
 
           {/* Follow-Ups tab */}
-          {!loading && !error && tab === 'followups' && (
+          {!loading && !error && tab === 'followups' && !selectionMode && (
             <>
               {followUps.length === 0 ? (
                 <div className="text-center py-16">
@@ -511,22 +886,57 @@ export default function ReferralsPage() {
                 </div>
               ) : (
                 <>
-                  {pendingFollowUps.length > 0 && (
+                  {pendingFUps.length > 0 && (
                     <p className="text-amber-600 dark:text-amber-400 text-xs font-medium">
-                      {pendingFollowUps.length} need a follow-up
+                      {pendingFUps.length} need a follow-up
                     </p>
                   )}
-                  {followUps.map((match) => (
-                    <FollowUpCard key={match.id} match={match} />
-                  ))}
+                  {followUps.map(match => <FollowUpCard key={match.id} match={match} />)}
                 </>
               )}
             </>
           )}
         </div>
+
+        {/* Bottom padding so sticky bar doesn't cover last card */}
+        {selectionMode && <div className="h-24" />}
       </div>
 
-      {/* Outreach modal */}
+      {/* Sticky selection bar */}
+      <AnimatePresence>
+        {selectionMode && selectedIds.size > 0 && (
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+            className="fixed bottom-0 left-0 right-0 z-40 px-5 pb-safe"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
+          >
+            <div className="max-w-[430px] mx-auto">
+              <button
+                onClick={() => setReviewOpen(true)}
+                className="btn-gradient w-full py-4 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-xl"
+              >
+                <Send className="w-4 h-4" />
+                Send Connect Request to {selectedIds.size} {selectedIds.size === 1 ? 'person' : 'people'} →
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Review sheet */}
+      <AnimatePresence>
+        {reviewOpen && (
+          <ReviewSheet
+            selectedMatches={selectedMatches}
+            onClose={() => setReviewOpen(false)}
+            onStartAutomation={handleStartAutomation}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Single outreach modal (existing flow) */}
       <AnimatePresence>
         {activeMatch && (
           <OutreachFlow

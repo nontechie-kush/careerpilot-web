@@ -1,20 +1,12 @@
 /**
- * Prompt builder for Claude-generated recruiter outreach messages.
+ * Prompt builder for Claude-generated recruiter outreach.
  *
- * Keeps messages short, direct, and in Pilot voice:
- * - No "I hope this finds you well"
- * - References the recruiter's actual specialization / placements
- * - Ends with a single clear ask
+ * Returns three formats needed for the outreach automation flow:
+ *   connection_note  — ≤200 chars, hook only, gets them to accept
+ *   dm_subject       — 6–8 words, used if connection limit hit
+ *   dm_body          — full message, used as follow-up DM after acceptance
  */
 
-/**
- * Build the outreach message prompt.
- *
- * @param {object} userProfile  — profiles.parsed_json (from Supabase)
- * @param {object} userPrefs    — users row (target_roles, locations, ic_or_lead, salary_min)
- * @param {object} recruiter    — recruiters row
- * @returns {string} prompt
- */
 const PILOT_MODES = {
   steady:     'Warm but minimal. No filler. Confident and respectful.',
   coach:      'Encouraging tone. Position the candidate as someone worth knowing.',
@@ -22,66 +14,75 @@ const PILOT_MODES = {
   unfiltered: 'Blunt and honest. No networking clichés. Say exactly what this person brings.',
 };
 
-export function buildOutreachPrompt(userProfile, userPrefs, recruiter, pilotMode = 'steady') {
+/**
+ * @param {object} userProfile     — profiles row (has parsed_json)
+ * @param {object} userPrefs       — users row
+ * @param {object} recruiter       — recruiters row
+ * @param {string} pilotMode       — steady|coach|hype|unfiltered
+ * @param {Array}  mutualConnections — [{name, profile_url}] from enrichment
+ */
+export function buildOutreachPrompt(userProfile, userPrefs, recruiter, pilotMode = 'steady', mutualConnections = []) {
   const parsed = userProfile?.parsed_json || {};
-  const name = parsed.name || 'the candidate';
-  const seniority = parsed.seniority || '';
-  const yearsExp = parsed.years_exp ? `${parsed.years_exp} years` : '';
-  const skills = (parsed.skills || []).slice(0, 5).join(', ') || 'software engineering';
-  const strongestCard = parsed.strongest_card || '';
-  const recentCompany = (parsed.companies || [])[0] || '';
-  const targetRoles = (userPrefs?.target_roles || []).join(', ') || 'engineering';
+  const candidateName  = parsed.name || 'the candidate';
+  const firstName      = candidateName.split(' ')[0];
+  const seniority      = parsed.seniority || 'experienced';
+  const yearsExp       = parsed.years_exp ? `${parsed.years_exp} years` : 'several years';
+  const skills         = (parsed.skills || []).slice(0, 4).join(', ') || 'product';
+  const strongestCard  = parsed.strongest_card || '';
+  const recentCompany  = (parsed.companies || [])[0] || '';
+  const targetRoles    = (userPrefs?.target_roles || []).join(', ') || 'product roles';
 
-  const recName = recruiter.name;
-  const recTitle = recruiter.title || 'Recruiter';
-  const recCompany = recruiter.current_company || '';
-  const placements = (recruiter.placements_at || []).slice(0, 3).join(', ') || 'various companies';
-  const specialization = (recruiter.specialization || []).map((s) => {
-    const map = { engineering: 'engineering', pm: 'product management', design: 'design', leadership: 'leadership' };
-    return map[s] || s;
-  }).join(' and ');
-  const geography = (recruiter.geography || []).join(', ');
+  const recFirstName   = recruiter.name?.split(' ')[0] || 'there';
+  const recCompany     = recruiter.current_company || '';
+  const placements     = (recruiter.placements_at || []).slice(0, 3).join(', ') || 'various companies';
+  const specialization = (recruiter.specialization || []).join(', ');
 
-  const recFirstName = recName.split(' ')[0];
+  const mutualLine = mutualConnections.length > 0
+    ? `Mutual connections: ${mutualConnections.slice(0, 2).map(m => m.name).join(' and ')}. Use one of their names naturally in the connection note if it fits.`
+    : '';
 
   const modeDesc = PILOT_MODES[pilotMode] || PILOT_MODES.steady;
 
-  return `You are Pilot, an AI job agent drafting a short LinkedIn message on behalf of a job seeker asking for a referral.
-Current mode: ${pilotMode} — ${modeDesc}
+  return `You are Pilot, an AI job agent drafting LinkedIn outreach for a job seeker.
+Mode: ${pilotMode} — ${modeDesc}
 
 CANDIDATE:
-- Name: ${name}
-- Seniority: ${seniority || 'experienced'}
-- Years of experience: ${yearsExp || 'several years'}
-- Key skills: ${skills}
-- Strongest card: ${strongestCard || 'strong technical execution'}
+- Name: ${candidateName}
+- Seniority: ${seniority}, ${yearsExp} experience
+- Skills: ${skills}
+- Strongest card: ${strongestCard || 'strong execution'}
 - Most recent company: ${recentCompany || 'a product company'}
 - Looking for: ${targetRoles}
 
 RECRUITER:
 - First name: ${recFirstName}
-- Title: ${recTitle}
 - Company: ${recCompany}
 - Specialization: ${specialization}
 - Known placements at: ${placements}
+${mutualLine ? `\n${mutualLine}` : ''}
 
 TASK:
-Write a short LinkedIn DM (3–4 sentences, max 150 words). This is a warm referral ask — not a networking pitch.
+Generate three versions of outreach. Return ONLY valid JSON, no commentary.
 
-Structure (follow this order):
-1. Start with "Hi ${recFirstName},"
-2. One sentence: who the candidate is — name, most recent company, one specific achievement or skill that makes them stand out
-3. One sentence: "I'm currently exploring ${targetRoles} opportunities" — optionally mention why this recruiter (e.g. saw they've placed at X)
-4. Closing ask — explicit, warm, low-friction: something like "It would be great if you could put in a referral or let me know if there's an opening that fits."
-5. Sign off with just the candidate's first name
+1. connection_note: A LinkedIn connection request note. MAX 200 characters (hard limit).
+   - Hook only — make them curious enough to accept
+   - Who the candidate is in one clause, what they want in another
+   - If mutual connections exist, a natural name-drop adds warmth
+   - Do NOT try to fit the full pitch here — it won't fit
+   - Must start with "Hi ${recFirstName},"
 
-Rules:
-- Do NOT say "I hope this finds you well", "I came across your profile", "passionate", "excited to join", or "leverage"
-- Do NOT open with the recruiter's work or compliment them — open with the greeting then the candidate intro
-- The ask must explicitly mention "referral" — not just "a call" or "connect"
-- Keep it warm and human, not transactional
+2. dm_subject: Subject line for a LinkedIn DM (used if connection limit hit).
+   - 6–8 words, specific to candidate + recruiter
+   - e.g. "PM at CARS24 — exploring Series B roles"
 
-Tone: Warm. Direct. Confident but not arrogant. Like reaching out to a senior person you respect.
+3. dm_body: Full LinkedIn DM message (100–150 words).
+   - 3–4 sentences
+   - Sentence 1: who the candidate is + one specific achievement
+   - Sentence 2: what they're looking for + why this recruiter (reference their placements)
+   - Sentence 3: explicit ask — mention "referral" not just "a call"
+   - Sign off with candidate's first name only
+   - NO "I hope this finds you well", "passionate", "excited to join", "leverage", "synergy"
 
-Output the message text only — no subject line, no preamble, no commentary.`;
+Return format:
+{"connection_note":"...","dm_subject":"...","dm_body":"..."}`;
 }
