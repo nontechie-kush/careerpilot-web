@@ -189,18 +189,16 @@ function HeroSection({ onFileSelected, onWebsiteSubmit }) {
           {...fadeUp(0.06)}
           className={`text-[28px] sm:text-[34px] xl:text-[44px] font-extrabold tracking-[-0.04em] leading-[1.12] mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}
         >
-          Matched jobs, right people,{' '}
-          <br className="hidden sm:block" />
-          drafted applications.{' '}
+          Right Jobs. Right Referrals.{' '}
           <br />
-          <span className="text-emerald-600">Every morning.</span>
+          <span className="text-emerald-600">10x Faster.</span>
         </motion.h1>
 
         <motion.p
           {...fadeUp(0.12)}
           className={`text-[15px] leading-relaxed max-w-md mb-7 ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}
         >
-          Import your profile once. CareerPilot scans job sites, finds the right people at each company, and drafts your applications. You just review and apply.
+          CareerPilot scans 20+ job sites every 4 hours, finds referral paths at each company, and drafts your applications. You just review and apply.
         </motion.p>
 
         {/* ── Import UI — right in the hero ── */}
