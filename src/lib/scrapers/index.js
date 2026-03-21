@@ -169,14 +169,17 @@ export const SCRAPERS = [
 export async function runAllScrapers(supabase) {
   const results = {};
 
-  // ── Pre-flight: ScraperAPI credit check (with backup key fallback) ───────
+  // ── Pre-flight: ScraperAPI credit check (tries all keys until one works) ──
   let scraperApiOk = false;
   const keysToTry = [
     process.env.SCRAPERAPI_KEY,
     process.env.SCRAPERAPI_KEY_BACKUP,
-  ].filter((k) => k && k !== 'placeholder');
+    // SCRAPERAPI_EXTRA_KEYS holds comma-separated backup keys
+    ...(process.env.SCRAPERAPI_EXTRA_KEYS || '').split(','),
+  ].map((k) => (k || '').trim()).filter((k) => k && k !== 'placeholder');
 
-  for (const key of keysToTry) {
+  for (let i = 0; i < keysToTry.length; i++) {
+    const key = keysToTry[i];
     try {
       const res = await fetch(
         `https://api.scraperapi.com/account?api_key=${key}`,
@@ -186,22 +189,21 @@ export async function runAllScrapers(supabase) {
         const { requestCount, requestLimit } = await res.json();
         const remaining = requestLimit - requestCount;
         if (remaining < 100) {
-          const isBackup = key !== process.env.SCRAPERAPI_KEY;
-          console.warn(`[scraper] ScraperAPI ${isBackup ? 'backup ' : ''}key low: ${remaining} credits left`);
+          console.warn(`[scraper] ScraperAPI key ${i + 1}/${keysToTry.length} low: ${remaining} credits left — trying next`);
           continue; // try next key
         }
-        console.log(`[scraper] ScraperAPI OK: ${remaining} credits remaining (${requestCount}/${requestLimit} used)`);
+        console.log(`[scraper] ScraperAPI key ${i + 1}/${keysToTry.length} OK: ${remaining} credits remaining (${requestCount}/${requestLimit} used)`);
         // Swap the active key so individual scrapers (naukri, ashby, etc.) pick it up
         process.env.SCRAPERAPI_KEY = key;
         scraperApiOk = true;
         break;
       }
     } catch (err) {
-      console.warn('[scraper] ScraperAPI preflight failed for key:', err.message);
+      console.warn(`[scraper] ScraperAPI key ${i + 1}/${keysToTry.length} preflight failed:`, err.message);
     }
   }
   if (!scraperApiOk && keysToTry.length > 0) {
-    console.warn('[scraper] All ScraperAPI keys exhausted — skipping ScraperAPI sources');
+    console.warn(`[scraper] All ${keysToTry.length} ScraperAPI keys exhausted — skipping ScraperAPI sources`);
   }
 
   // ── Fetch active users for Naukri clusters ────────────────────────────────

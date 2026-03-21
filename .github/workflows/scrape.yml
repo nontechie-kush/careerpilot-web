@@ -30,4 +30,5 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SCRAPERAPI_KEY: ${{ secrets.SCRAPERAPI_KEY }}
           SCRAPERAPI_KEY_BACKUP: ${{ secrets.SCRAPERAPI_KEY_BACKUP }}
+          SCRAPERAPI_EXTRA_KEYS: ${{ secrets.SCRAPERAPI_EXTRA_KEYS }}
         run: node --experimental-loader ./scripts/alias-loader.mjs scripts/run-scrapers.mjs
