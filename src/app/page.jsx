@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { motion, useInView } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import {
-  Upload, Globe, FileText, ArrowRight, ChevronRight,
+  Upload, Globe, FileText, ArrowRight,
   CheckCircle, Zap, Shield, Briefcase, Users, Send,
-  Star, Clock, BarChart3, Sun, Moon,
+  Clock, Sun, Moon,
 } from 'lucide-react';
 import useStore from '@/store/useStore';
 
@@ -57,90 +57,7 @@ function Navbar({ onSignIn }) {
   );
 }
 
-// ── Outcome Cards (replaces dashboard screenshot) ────────────
-const outcomeJobs = [
-  {
-    role: 'Product Manager',
-    co: 'Stripe',
-    location: 'SF · Remote',
-    fit: 'Great fit',
-    fitColor: 'text-emerald-600 bg-emerald-50',
-    fitColorDark: 'text-emerald-400 bg-emerald-400/10',
-    tags: ['Application ready', 'Referral found'],
-  },
-  {
-    role: 'Growth Lead',
-    co: 'Razorpay',
-    location: 'Bangalore',
-    fit: 'Great fit',
-    fitColor: 'text-emerald-600 bg-emerald-50',
-    fitColorDark: 'text-emerald-400 bg-emerald-400/10',
-    tags: ['Application ready', '2 referral paths'],
-  },
-  {
-    role: 'Sr. Frontend Engineer',
-    co: 'Vercel',
-    location: 'Remote · $170–210K',
-    fit: 'Good fit',
-    fitColor: 'text-amber-600 bg-amber-50',
-    fitColorDark: 'text-amber-400 bg-amber-400/10',
-    tags: ['Drafting application…'],
-  },
-];
-
-function OutcomeVisual() {
-  const darkMode = useStore((s) => s.darkMode);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.3, ease: 'easeOut' }}
-      className="w-full max-w-md mx-auto xl:mx-0"
-    >
-      <div className={`rounded-2xl overflow-hidden border ${darkMode ? 'border-white/10 shadow-2xl' : 'border-gray-200 shadow-xl shadow-gray-200/50'}`}
-        style={{ background: darkMode ? 'hsl(240 4% 10%)' : '#fff' }}>
-        {/* Header */}
-        <div className={`flex items-center justify-between px-4 py-2.5 border-b ${darkMode ? 'border-white/[0.08]' : 'border-gray-100'}`}
-          style={{ background: darkMode ? 'hsl(240 5% 7%)' : '#fafafa' }}>
-          <span className={`text-[11px] font-semibold tracking-wide uppercase ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-            Your matched jobs
-          </span>
-          <span className="text-[10px] font-medium text-emerald-600 flex items-center gap-1.5">
-            <span className="w-[5px] h-[5px] rounded-full bg-emerald-500 animate-blink" />
-            12 new today
-          </span>
-        </div>
-
-        <div className="p-3 space-y-2">
-          {outcomeJobs.map((j) => (
-            <div key={j.role} className={`rounded-xl p-3.5 border ${darkMode ? 'border-white/[0.08]' : 'border-gray-100'}`}
-              style={{ background: darkMode ? 'hsl(240 5% 7%)' : '#fafafa' }}>
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <div className={`text-sm font-semibold tracking-tight leading-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>{j.role}</div>
-                  <div className={`text-[11px] mt-0.5 ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>{j.co} · {j.location}</div>
-                </div>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ml-2.5 shrink-0 ${darkMode ? j.fitColorDark : j.fitColor}`}>
-                  {j.fit}
-                </span>
-              </div>
-              <div className="flex gap-1.5 flex-wrap">
-                {j.tags.map((t) => (
-                  <span key={t} className={`text-[10.5px] px-2 py-0.5 rounded-[5px] flex items-center gap-1 ${darkMode ? 'bg-white/[0.04] text-slate-400' : 'bg-gray-100 text-gray-600'}`}>
-                    {t.startsWith('Drafting') ? <Clock className="w-2.5 h-2.5 text-amber-500" /> : <CheckCircle className="w-2.5 h-2.5 text-emerald-500" />}
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Hero with Import UI ──────────────────────────────────────
+// ── Hero — headline left, import UI right ────────────────────
 function HeroSection({ onFileSelected, onWebsiteSubmit }) {
   const darkMode = useStore((s) => s.darkMode);
   const fileInputRef = useRef(null);
@@ -173,120 +90,121 @@ function HeroSection({ onFileSelected, onWebsiteSubmit }) {
   };
 
   return (
-    <section className="relative pt-28 pb-10 xl:pt-0 xl:pb-0 px-5 xl:px-0">
-      <div className="relative">
-        {/* Tagline */}
-        <motion.div
-          {...fadeUp(0)}
-          className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium mb-5 ${darkMode ? 'bg-emerald-400/10 border border-emerald-400/20 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'}`}
-        >
-          <Zap className="w-3 h-3" />
-          20+ job sites scanned every 4 hours
-        </motion.div>
-
-        {/* Headline — outcome focused */}
-        <motion.h1
-          {...fadeUp(0.06)}
-          className={`text-[28px] sm:text-[34px] xl:text-[44px] font-extrabold tracking-[-0.04em] leading-[1.12] mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}
-        >
-          Right Jobs. Right Referrals.{' '}
-          <br />
-          <span className="text-emerald-600">10x Faster.</span>
-        </motion.h1>
-
-        <motion.p
-          {...fadeUp(0.12)}
-          className={`text-[15px] leading-relaxed max-w-md mb-7 ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}
-        >
-          CareerPilot scans 20+ job sites every 4 hours, finds referral paths at each company, and drafts your applications. You just review and apply.
-        </motion.p>
-
-        {/* ── Import UI — right in the hero ── */}
-        <motion.div {...fadeUp(0.18)} className="max-w-md">
-          {/* Primary: Upload */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`w-full rounded-2xl p-5 flex items-center gap-4 transition-all active:scale-[0.98] group text-left ${dragOver ? 'scale-[1.01]' : ''} ${darkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-emerald-50/50'}`}
-            style={{
-              background: darkMode
-                ? (dragOver ? 'rgba(16,185,129,0.05)' : 'hsl(240 5% 7%)')
-                : (dragOver ? 'rgba(16,185,129,0.04)' : '#fafafa'),
-              border: `2px dashed ${dragOver
-                ? 'rgba(16,185,129,0.6)'
-                : (darkMode ? 'rgba(255,255,255,0.1)' : '#d1d5db')}`,
-            }}
+    <section className="pt-28 lg:pt-36 pb-12 lg:pb-16 px-5 lg:px-8 max-w-6xl mx-auto">
+      <div className="lg:grid lg:grid-cols-2 lg:gap-16 lg:items-center">
+        {/* ── Left: Headline ── */}
+        <div>
+          <motion.h1
+            {...fadeUp(0)}
+            className={`text-[32px] sm:text-[38px] xl:text-[50px] font-extrabold tracking-[-0.04em] leading-[1.08] mb-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}
           >
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${darkMode ? 'bg-emerald-400/10' : 'bg-emerald-50'}`}>
-              <Upload className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className={`font-semibold text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>Upload resume or portfolio</p>
-              <p className={`text-xs mt-0.5 ${darkMode ? 'text-slate-500' : 'text-gray-500'}`}>PDF or Word · Drag & drop or click</p>
-            </div>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-          />
+            Right Jobs.{' '}
+            <br className="hidden sm:block" />
+            Right Referrals.{' '}
+            <br />
+            <span className="text-emerald-600">10x Faster.</span>
+          </motion.h1>
 
-          {/* Secondary: Website URL */}
-          <div className="flex gap-2 mt-3">
-            <div className="relative flex-1">
-              <Globe className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`} />
-              <input
-                type="url"
-                placeholder="Or paste portfolio / website URL"
-                value={websiteUrl}
-                onChange={(e) => setWebsiteUrl(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleWebsite()}
-                className={`w-full rounded-xl pl-10 pr-4 py-3 text-sm outline-none transition-all ${darkMode ? 'bg-[hsl(240,5%,8%)] border border-white/[0.08] text-white placeholder:text-slate-600 focus:ring-1 focus:ring-emerald-400/40' : 'bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30'}`}
-              />
-            </div>
-            <button
-              onClick={handleWebsite}
-              disabled={!websiteUrl.trim()}
-              className="px-4 rounded-xl bg-emerald-600 text-white font-bold text-sm disabled:opacity-40 hover:bg-emerald-700 transition-colors"
-            >
-              Go
-            </button>
-          </div>
+          <motion.p
+            {...fadeUp(0.06)}
+            className={`text-[15px] leading-relaxed max-w-sm mb-6 lg:mb-0 ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}
+          >
+            Scans 20+ job sites. Finds referral paths. Drafts applications. Every 4 hours.
+          </motion.p>
+        </div>
 
-          {/* Tertiary links */}
-          <div className={`flex items-center gap-4 mt-3 text-xs ${darkMode ? 'text-slate-500' : 'text-gray-500'}`}>
+        {/* ── Right: Import UI ── */}
+        <motion.div {...fadeUp(0.12)} className="max-w-md lg:max-w-none">
+          <div className={`rounded-2xl p-6 lg:p-7 border ${darkMode ? 'border-white/[0.08] bg-[hsl(240,4%,7%)]' : 'border-gray-200 bg-white shadow-lg shadow-gray-200/40'}`}>
+            <h2 className={`text-lg font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Get started
+            </h2>
+
+            {/* Upload */}
             <button
-              onClick={() => {
-                sessionStorage.setItem('careerpilot_import', JSON.stringify({ method: 'paste', showPaste: true }));
-                window.location.href = '/auth/signup?method=paste';
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`w-full rounded-xl p-4 flex items-center gap-3.5 transition-all active:scale-[0.98] text-left ${dragOver ? 'scale-[1.01]' : ''} ${darkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-emerald-50/50'}`}
+              style={{
+                background: darkMode
+                  ? (dragOver ? 'rgba(16,185,129,0.05)' : 'hsl(240 5% 10%)')
+                  : (dragOver ? 'rgba(16,185,129,0.04)' : '#fafafa'),
+                border: `2px dashed ${dragOver
+                  ? 'rgba(16,185,129,0.6)'
+                  : (darkMode ? 'rgba(255,255,255,0.1)' : '#d1d5db')}`,
               }}
-              className={`flex items-center gap-1 hover:underline ${darkMode ? 'hover:text-slate-300' : 'hover:text-gray-700'}`}
             >
-              <FileText className="w-3 h-3" /> Paste text
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${darkMode ? 'bg-emerald-400/10' : 'bg-emerald-50'}`}>
+                <Upload className="w-4.5 h-4.5 text-emerald-600" />
+              </div>
+              <div>
+                <p className={`font-semibold text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>Upload resume or portfolio</p>
+                <p className={`text-xs mt-0.5 ${darkMode ? 'text-slate-500' : 'text-gray-500'}`}>PDF or Word · Drag & drop or click</p>
+              </div>
             </button>
-            <span className={darkMode ? 'text-slate-700' : 'text-gray-300'}>|</span>
-            <button
-              onClick={() => window.location.href = '/auth/signup?method=manual'}
-              className={`hover:underline ${darkMode ? 'hover:text-slate-300' : 'hover:text-gray-700'}`}
-            >
-              No resume? Fill in details
-            </button>
-          </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            />
 
-          {error && (
-            <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-red-500" /> {error}
+            {/* Website URL */}
+            <div className="flex gap-2 mt-3">
+              <div className="relative flex-1">
+                <Globe className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`} />
+                <input
+                  type="url"
+                  placeholder="Or paste portfolio / website URL"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleWebsite()}
+                  className={`w-full rounded-xl pl-10 pr-4 py-3 text-sm outline-none transition-all ${darkMode ? 'bg-[hsl(240,5%,10%)] border border-white/[0.08] text-white placeholder:text-slate-600 focus:ring-1 focus:ring-emerald-400/40' : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30'}`}
+                />
+              </div>
+              <button
+                onClick={handleWebsite}
+                disabled={!websiteUrl.trim()}
+                className="px-4 rounded-xl bg-emerald-600 text-white font-bold text-sm disabled:opacity-40 hover:bg-emerald-700 transition-colors"
+              >
+                Go
+              </button>
+            </div>
+
+            {/* Tertiary links */}
+            <div className={`flex items-center gap-4 mt-3 text-xs ${darkMode ? 'text-slate-500' : 'text-gray-500'}`}>
+              <button
+                onClick={() => {
+                  sessionStorage.setItem('careerpilot_import', JSON.stringify({ method: 'paste', showPaste: true }));
+                  window.location.href = '/auth/signup?method=paste';
+                }}
+                className={`flex items-center gap-1 hover:underline ${darkMode ? 'hover:text-slate-300' : 'hover:text-gray-700'}`}
+              >
+                <FileText className="w-3 h-3" /> Paste text
+              </button>
+              <span className={darkMode ? 'text-slate-700' : 'text-gray-300'}>|</span>
+              <button
+                onClick={() => window.location.href = '/auth/signup?method=manual'}
+                className={`hover:underline ${darkMode ? 'hover:text-slate-300' : 'hover:text-gray-700'}`}
+              >
+                No resume? Fill in details
+              </button>
+            </div>
+
+            {error && (
+              <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-red-500" /> {error}
+              </p>
+            )}
+
+            <p className={`text-[11px] mt-4 flex items-center gap-1.5 ${darkMode ? 'text-slate-600' : 'text-gray-400'}`}>
+              <Shield className="w-3 h-3" />
+              Free for 14 days · No credit card
             </p>
-          )}
-
-          <p className={`text-[11px] mt-3 flex items-center gap-1.5 ${darkMode ? 'text-slate-600' : 'text-gray-400'}`}>
-            <Shield className="w-3 h-3" />
-            Encrypted. Never shared. Free for 14 days.
-          </p>
+          </div>
         </motion.div>
       </div>
     </section>
@@ -725,18 +643,9 @@ export default function LandingPage() {
       style={{ fontFamily: "'Outfit', -apple-system, sans-serif" }}>
       <Navbar onSignIn={goSignIn} />
 
-      {/* Hero + Outcome visual: side-by-side on desktop */}
-      <div className="max-w-6xl mx-auto xl:grid xl:grid-cols-2 xl:gap-12 xl:items-center xl:px-8 xl:pt-32">
-        <HeroSection onFileSelected={handleFileSelected} onWebsiteSubmit={handleWebsiteSubmit} />
-        <div className="px-5 mt-6 xl:mt-0 xl:px-0">
-          <OutcomeVisual />
-        </div>
-      </div>
+      <HeroSection onFileSelected={handleFileSelected} onWebsiteSubmit={handleWebsiteSubmit} />
 
-      {/* Trust strip — job sites we scan */}
-      <div className="mt-10">
-        <TrustStrip />
-      </div>
+      <TrustStrip />
 
       {/* What you get */}
       <OutcomesSection />
