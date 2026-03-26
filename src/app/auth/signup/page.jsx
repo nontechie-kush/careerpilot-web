@@ -284,59 +284,29 @@ function SignupInner() {
   const inputCls = `w-full rounded-xl px-4 py-3 text-sm outline-none transition-all ${darkMode ? 'bg-[hsl(240,5%,8%)] border border-white/[0.08] text-white placeholder:text-slate-600 focus:ring-1 focus:ring-emerald-400/40' : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20'}`;
 
   return (
-    <div className={`min-h-dvh flex flex-col lg:flex-row transition-colors ${darkMode ? 'bg-slate-950' : 'bg-white'}`}
+    <div className={`min-h-dvh flex flex-col transition-colors ${darkMode ? 'bg-slate-950' : 'bg-white'}`}
       style={{ fontFamily: "'Outfit', -apple-system, sans-serif" }}>
 
-      {/* ── Left panel (branding) — desktop only ── */}
-      <div className={`hidden lg:flex lg:w-[52%] xl:w-[55%] flex-col justify-between p-10 xl:p-14 relative overflow-hidden ${darkMode ? 'bg-[hsl(240,7%,5%)]' : 'bg-gradient-to-br from-emerald-50 to-white'}`}>
-        <Link href="/" className={`flex items-center gap-2.5 font-bold text-base tracking-tight w-fit ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          <div className="w-[28px] h-[28px] rounded-[8px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-[14px] font-extrabold text-white">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between w-full max-w-[520px] mx-auto px-5 pt-6 pb-2">
+        <Link href="/" className={`flex items-center gap-2 font-bold text-base tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className="w-[26px] h-[26px] rounded-[7px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-[13px] font-extrabold text-white">
             C
           </div>
           CareerPilot
         </Link>
-
-        <div className="relative">
-          <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <h1 className={`text-[40px] xl:text-[48px] font-extrabold tracking-[-0.045em] leading-[1.06] mb-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Matched jobs.{' '}
-              <span className="text-emerald-600">Right people.</span>{' '}
-              Drafted applications.
-            </h1>
-            <p className={`text-[15px] leading-relaxed max-w-sm ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-              Import your profile once. CareerPilot scans 20+ job sites, finds hiring contacts, and drafts your applications. Every day.
-            </p>
-          </motion.div>
-        </div>
-
-        <p className={`text-xs ${darkMode ? 'text-slate-600' : 'text-gray-400'}`}>
-          By signing up, you agree to our{' '}
-          <Link href="/terms" className="underline underline-offset-2 hover:text-gray-600">Terms</Link>
-          {' & '}
-          <Link href="/privacy" className="underline underline-offset-2 hover:text-gray-600">Privacy Policy</Link>
-        </p>
+        <button
+          onClick={toggleDarkMode}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center ${darkMode ? 'text-slate-400 hover:text-white' : 'text-gray-400 hover:text-gray-700'}`}
+        >
+          {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
       </div>
 
-      {/* ── Right panel ── */}
-      <div className={`flex-1 flex flex-col items-center justify-center px-5 py-10 lg:py-0 overflow-y-auto ${darkMode ? 'bg-slate-950' : 'bg-white'}`}>
+      {/* ── Main content ── */}
+      <div className={`flex-1 flex flex-col items-center px-5 py-4 overflow-y-auto ${darkMode ? 'bg-slate-950' : 'bg-white'}`}>
 
-        {/* Mobile header */}
-        <div className="flex items-center justify-between w-full max-w-[420px] mb-8 lg:hidden">
-          <Link href="/" className={`flex items-center gap-2 font-bold text-base tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            <div className="w-[26px] h-[26px] rounded-[7px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-[13px] font-extrabold text-white">
-              C
-            </div>
-            CareerPilot
-          </Link>
-          <button
-            onClick={toggleDarkMode}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center ${darkMode ? 'text-slate-400 hover:text-white' : 'text-gray-400 hover:text-gray-700'}`}
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-        </div>
-
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-[520px]">
           <AnimatePresence mode="wait">
 
             {/* ── PHASE 1: IMPORT ── */}
@@ -595,12 +565,6 @@ function SignupInner() {
                   </GreenBtn>
                 </form>
 
-                <p className={`text-center text-xs mt-5 lg:hidden ${darkMode ? 'text-slate-600' : 'text-gray-400'}`}>
-                  By signing up, you agree to our{' '}
-                  <Link href="/terms" className="underline hover:text-gray-600">Terms</Link>
-                  {' & '}
-                  <Link href="/privacy" className="underline hover:text-gray-600">Privacy Policy</Link>
-                </p>
               </motion.div>
             )}
 
@@ -649,6 +613,13 @@ function SignupInner() {
 
           </AnimatePresence>
         </div>
+
+        <p className={`text-center text-xs mt-8 ${darkMode ? 'text-slate-600' : 'text-gray-400'}`}>
+          By signing up, you agree to our{' '}
+          <Link href="/terms" className="underline underline-offset-2 hover:text-gray-600">Terms</Link>
+          {' & '}
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-gray-600">Privacy Policy</Link>
+        </p>
       </div>
     </div>
   );

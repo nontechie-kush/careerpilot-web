@@ -11,7 +11,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClientFromRequest } from '@/lib/supabase/server';
 
 const VALID_TYPES = new Set(['application', 'outreach', 'prospect']);
 const VALID_STAGES = new Set([
@@ -21,7 +21,7 @@ const VALID_STAGES = new Set([
 
 export async function POST(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const {
       data: { user },
     } = await supabase.auth.getUser();

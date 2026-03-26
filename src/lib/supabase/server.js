@@ -36,6 +36,35 @@ export async function createClient() {
 }
 
 /**
+ * Create a Supabase client from an incoming API request.
+ * Supports BOTH cookie-based auth (web) and Bearer token auth (mobile).
+ * Use this in API routes that need to serve both web and mobile clients.
+ *
+ * Priority: Bearer token > cookies
+ */
+export async function createClientFromRequest(request) {
+  const authHeader = request.headers.get('Authorization');
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (bearerToken) {
+    // Mobile client — use the access token directly
+    const { createClient: createBrowserClient } = await import('@supabase/supabase-js');
+    const client = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        global: { headers: { Authorization: `Bearer ${bearerToken}` } },
+        auth: { persistSession: false },
+      },
+    );
+    return client;
+  }
+
+  // Web client — fall back to cookie-based auth
+  return createClient();
+}
+
+/**
  * Service-role client for privileged operations (cron jobs, admin).
  * NEVER expose this to the client. Server-side only.
  */

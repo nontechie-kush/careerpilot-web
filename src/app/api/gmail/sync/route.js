@@ -11,14 +11,14 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClientFromRequest } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { refreshAccessToken, getJobThreads, getThreadMetadata } from '@/lib/gmail/client';
 import { detectPattern, patternToStage, isStageProgression } from '@/lib/gmail/patterns';
 
 export async function POST(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const {
       data: { user },
     } = await supabase.auth.getUser();

@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createClientFromRequest, createServiceClient } from '@/lib/supabase/server';
 import { recordSignal } from '@/lib/flywheel/signals';
 
 const EXCELLENT_SCORE = 75; // ≥75% = Excellent
@@ -18,7 +18,7 @@ const GOOD_SCORE = 50;      // 50–74% = Good, <50% = Others
 
 export async function GET(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const serviceClient = createServiceClient();
     const {
       data: { user },
@@ -159,7 +159,7 @@ const VALID_DISMISSED_REASONS = new Set([
 
 export async function PATCH(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const {
       data: { user },
     } = await supabase.auth.getUser();

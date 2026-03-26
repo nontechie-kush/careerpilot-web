@@ -62,65 +62,33 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`min-h-dvh flex flex-col lg:flex-row transition-colors ${darkMode ? 'bg-slate-950' : 'bg-white'}`}
+    <div className={`min-h-dvh flex flex-col transition-colors ${darkMode ? 'bg-slate-950' : 'bg-white'}`}
       style={{ fontFamily: "'Outfit', -apple-system, sans-serif" }}>
 
-      {/* ── Left panel — desktop only ── */}
-      <div className={`hidden lg:flex lg:w-[52%] xl:w-[55%] flex-col justify-between p-10 xl:p-14 relative overflow-hidden ${darkMode ? 'bg-[hsl(240,7%,5%)]' : 'bg-gradient-to-br from-emerald-50 to-white'}`}>
-        <Link href="/" className={`flex items-center gap-2.5 font-bold text-base tracking-tight w-fit ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          <div className="w-[28px] h-[28px] rounded-[8px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-[14px] font-extrabold text-white">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between w-full max-w-[520px] mx-auto px-5 pt-6 pb-2">
+        <Link href="/" className={`flex items-center gap-2 font-bold text-base tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className="w-[26px] h-[26px] rounded-[7px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-[13px] font-extrabold text-white">
             C
           </div>
           CareerPilot
         </Link>
-
-        <div className="relative">
-          <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-6 ${darkMode ? 'bg-emerald-400/10 border border-emerald-400/20 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'}`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-blink" />
-              Pilot is scanning right now
-            </div>
-
-            <h1 className={`text-[40px] xl:text-[48px] font-extrabold tracking-[-0.045em] leading-[1.06] mb-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Welcome{' '}
-              <span className="text-emerald-600">back.</span>
-            </h1>
-
-            <p className={`text-[15px] leading-relaxed max-w-sm ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-              Your pipeline, recruiter outreach, and job matches are waiting.
-            </p>
-          </motion.div>
-        </div>
-
-        <p className={`text-xs ${darkMode ? 'text-slate-600' : 'text-gray-400'}`}>
-          By continuing, you agree to our Terms &amp; Privacy Policy
-        </p>
+        <button
+          onClick={toggleDarkMode}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center ${darkMode ? 'text-slate-400 hover:text-white' : 'text-gray-400 hover:text-gray-700'}`}
+        >
+          {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
       </div>
 
-      {/* ── Right panel ── */}
-      <div className={`flex-1 flex flex-col items-center justify-center px-5 py-10 lg:py-0 ${darkMode ? 'bg-slate-950' : 'bg-white'}`}>
-
-        {/* Mobile header */}
-        <div className="flex items-center justify-between w-full max-w-[400px] mb-8 lg:hidden">
-          <Link href="/" className={`flex items-center gap-2 font-bold text-base tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            <div className="w-[26px] h-[26px] rounded-[7px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-[13px] font-extrabold text-white">
-              C
-            </div>
-            CareerPilot
-          </Link>
-          <button
-            onClick={toggleDarkMode}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center ${darkMode ? 'text-slate-400 hover:text-white' : 'text-gray-400 hover:text-gray-700'}`}
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-        </div>
+      {/* ── Main content ── */}
+      <div className={`flex-1 flex flex-col items-center px-5 py-4 ${darkMode ? 'bg-slate-950' : 'bg-white'}`}>
 
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.05 }}
-          className="w-full max-w-[400px]"
+          className="w-full max-w-[520px]"
         >
           <h2 className={`text-2xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Sign in</h2>
           <p className={`text-sm mb-7 ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
@@ -212,10 +180,14 @@ export default function LoginPage() {
             Continue with Google
           </button>
 
-          <p className={`text-center text-xs mt-7 lg:hidden ${darkMode ? 'text-slate-600' : 'text-gray-400'}`}>
-            By continuing, you agree to our Terms &amp; Privacy Policy
-          </p>
         </motion.div>
+
+        <p className={`text-center text-xs mt-8 ${darkMode ? 'text-slate-600' : 'text-gray-400'}`}>
+          By continuing, you agree to our{' '}
+          <Link href="/terms" className="underline underline-offset-2 hover:text-gray-600">Terms</Link>
+          {' & '}
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-gray-600">Privacy Policy</Link>
+        </p>
       </div>
     </div>
   );

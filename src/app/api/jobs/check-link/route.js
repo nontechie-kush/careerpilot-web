@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createClientFromRequest, createServiceClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +39,7 @@ export async function GET(request) {
     if (dead && matchId) {
       // Auto-mark job as unpublished_closed — server confirmed the link is gone
       try {
-        const supabase = await createClient();
+        const supabase = await createClientFromRequest(request);
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: match } = await supabase

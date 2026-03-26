@@ -22,7 +22,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClientFromRequest } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service-client';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +30,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request) {
   try {
     // Auth — extension must be authenticated as a user
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

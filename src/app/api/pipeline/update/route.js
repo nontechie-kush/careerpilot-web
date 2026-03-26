@@ -11,7 +11,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createClientFromRequest, createServiceClient } from '@/lib/supabase/server';
 import { recordSignal } from '@/lib/flywheel/signals';
 
 const VALID_STAGES = new Set([
@@ -21,7 +21,7 @@ const VALID_STAGES = new Set([
 
 export async function PATCH(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -82,7 +82,7 @@ export async function PATCH(request) {
 // DELETE /api/pipeline/update — remove a pipeline entry
 export async function DELETE(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const {
       data: { user },
     } = await supabase.auth.getUser();

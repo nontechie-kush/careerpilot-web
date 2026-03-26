@@ -398,9 +398,9 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {jobsLoading ? (
-              [1, 2, 3].map((i) => <JobSkeleton key={i} />)
+              [1, 2, 3, 4].map((i) => <JobSkeleton key={i} />)
             ) : matches.length === 0 ? (
-              <div className="card p-6 text-center">
+              <div className="card p-6 text-center col-span-full">
                 <div className="flex items-center justify-center gap-2 mb-3">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping [animation-delay:0.2s]" />
@@ -414,10 +414,10 @@ export default function HomePage() {
             ) : (
               <>
                 {/* Referral nudge when no excellent fits */}
-                {noExcellent && <ReferralNudge />}
+                {noExcellent && <div className="col-span-full"><ReferralNudge /></div>}
 
                 {noExcellent && goodCount === 0 && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 px-1 pt-1">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 px-1 pt-1 col-span-full">
                     Stretch shots — apply if any feel right
                   </p>
                 )}

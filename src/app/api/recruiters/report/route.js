@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClientFromRequest } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ const VALID_REASONS = new Set(['wrong_person', 'profile_gone', 'not_a_recruiter'
 
 export async function POST(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

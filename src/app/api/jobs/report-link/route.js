@@ -11,13 +11,13 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createClientFromRequest, createServiceClient } from '@/lib/supabase/server';
 
 const REPORT_THRESHOLD = 2;
 
 export async function POST(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

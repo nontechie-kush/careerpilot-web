@@ -15,7 +15,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClientFromRequest } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,9 +115,9 @@ function scoreRecruiter(recruiter, userGeo, userSpec, userSeniority) {
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

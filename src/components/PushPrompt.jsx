@@ -119,8 +119,8 @@ export default function PushPrompt({ onSubscribed, forceShow = false }) {
             ) : (
               <>
                 <div className="flex items-center gap-3 mb-5">
-                  <div className="w-11 h-11 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
-                    <Bell className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                  <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                    <Bell className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-white text-sm">

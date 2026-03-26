@@ -247,7 +247,7 @@ function LiveAnswerCard({ matchId }) {
         onKeyDown={handleKeyDown}
         placeholder="Paste a question from the form…"
         rows={3}
-        className="w-full text-sm px-3 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+        className="w-full text-sm px-3 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
       />
       <button
         onClick={handleAnswer}
@@ -294,13 +294,13 @@ async function openDPIPKit(kitCards, matchId) {
       .dark body { background: #0f172a; color: #f1f5f9; }
       .header { padding: 14px 16px 10px; border-bottom: 1px solid #e5e7eb; }
       .dark .header { border-color: #1e293b; }
-      .header-meta { font-size: 10px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
+      .header-meta { font-size: 10px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
       .real-badge { font-size: 9px; font-weight: 700; background: #d1fae5; color: #065f46; padding: 1px 5px; border-radius: 4px; text-transform: uppercase; }
       .dark .real-badge { background: #064e3b; color: #6ee7b7; }
       .header-title { font-size: 13px; font-weight: 700; margin-top: 3px; line-height: 1.35; }
       .counter { font-size: 11px; color: #9ca3af; margin-top: 2px; }
       .card-area { flex: 1; overflow-y: auto; padding: 14px 16px; }
-      .card-label { font-size: 10px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+      .card-label { font-size: 10px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
       .card-text { font-size: 13px; line-height: 1.6; color: #374151; white-space: pre-wrap; }
       .dark .card-text { color: #d1d5db; }
       .qa-q { font-size: 11px; font-weight: 600; color: #6b7280; margin-bottom: 6px; line-height: 1.4; }
@@ -310,17 +310,17 @@ async function openDPIPKit(kitCards, matchId) {
       .dark .single-q { color: #94a3b8; border-color: #1e293b; }
       .nav { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 14px; border-top: 1px solid #e5e7eb; gap: 8px; }
       .dark .nav { border-color: #1e293b; }
-      .nav-btn { flex: 1; padding: 8px; border: none; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; background: #ede9fe; color: #6d28d9; }
-      .dark .nav-btn { background: #2e1065; color: #a78bfa; }
+      .nav-btn { flex: 1; padding: 8px; border: none; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; background: #d1fae5; color: #065f46; }
+      .dark .nav-btn { background: #064e3b; color: #6ee7b7; }
       .nav-btn:disabled { opacity: 0.3; cursor: default; }
-      .copy-btn { flex: 1; padding: 8px; border: none; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; background: #7c3aed; color: white; }
+      .copy-btn { flex: 1; padding: 8px; border: none; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; background: #059669; color: white; }
       .copy-btn.copied { background: #059669; }
       /* Live card styles */
       .live-hint { font-size: 11px; color: #9ca3af; margin-bottom: 10px; line-height: 1.5; }
       .live-input { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 12px; color: #374151; resize: vertical; font-family: inherit; background: white; }
       .dark .live-input { border-color: #334155; background: #1e293b; color: #f1f5f9; }
-      .live-input:focus { outline: 2px solid #7c3aed; outline-offset: -1px; }
-      .live-btn { margin-top: 8px; width: 100%; padding: 9px; border: none; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; background: #7c3aed; color: white; transition: opacity 0.15s; }
+      .live-input:focus { outline: 2px solid #059669; outline-offset: -1px; }
+      .live-btn { margin-top: 8px; width: 100%; padding: 9px; border: none; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; background: #059669; color: white; transition: opacity 0.15s; }
       .live-btn:disabled { opacity: 0.45; cursor: default; }
       .live-answer { margin-top: 10px; font-size: 12px; line-height: 1.6; color: #374151; white-space: pre-wrap; min-height: 0; }
       .dark .live-answer { color: #d1d5db; }
@@ -464,7 +464,7 @@ function PreviewStage({ job, flow, onPrepare, onClose }) {
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div>
-            <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
               ⚡ Applying via {flow.label}
             </p>
             <p className="font-bold text-gray-900 dark:text-white text-base mt-0.5 leading-snug">
@@ -519,20 +519,20 @@ function PreviewStage({ job, flow, onPrepare, onClose }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 mb-4">
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 mb-4">
           <div>
-            <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">Est. time</p>
-            <p className="text-sm font-bold text-violet-700 dark:text-violet-300">~{flow.avgMinutes} min</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Est. time</p>
+            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">~{flow.avgMinutes} min</p>
           </div>
-          <div className="h-8 w-px bg-violet-200 dark:bg-violet-800" />
+          <div className="h-8 w-px bg-emerald-200 dark:bg-emerald-800" />
           <div>
-            <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">With Pilot</p>
-            <p className="text-sm font-bold text-violet-700 dark:text-violet-300">~90% faster</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">With Pilot</p>
+            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">~90% faster</p>
           </div>
-          <div className="h-8 w-px bg-violet-200 dark:bg-violet-800" />
+          <div className="h-8 w-px bg-emerald-200 dark:bg-emerald-800" />
           <div>
-            <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">Pilot handles</p>
-            <p className="text-sm font-bold text-violet-700 dark:text-violet-300">
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Pilot handles</p>
+            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
               {flow.pilotItems.length} of {flow.pilotItems.length + flow.userItems.length} steps
             </p>
           </div>
@@ -540,7 +540,7 @@ function PreviewStage({ job, flow, onPrepare, onClose }) {
 
         {desktop && (
           <div className="px-3 py-3 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-700 flex items-center gap-3">
-            <Monitor className="w-4 h-4 text-violet-500 shrink-0" />
+            <Monitor className="w-4 h-4 text-emerald-500 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Full Pilot coming soon</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Extension will auto-fill the form for you</p>
@@ -606,10 +606,10 @@ function GeneratingStage({ applyType }) {
   return (
     <div className="flex flex-col items-center justify-center h-full py-10 gap-5">
       <div className="relative">
-        <div className="w-16 h-16 rounded-2xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-          <Zap className="w-8 h-8 text-violet-600 dark:text-violet-400" />
+        <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+          <Zap className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
         </div>
-        <Loader2 className="w-5 h-5 text-violet-500 animate-spin absolute -top-1 -right-1" />
+        <Loader2 className="w-5 h-5 text-emerald-500 animate-spin absolute -top-1 -right-1" />
       </div>
       <div className="text-center">
         <p className="font-semibold text-gray-900 dark:text-white">Pilot is writing…</p>
@@ -651,7 +651,7 @@ function ReadyStage({ kit, job, matchId, onOpenPortal }) {
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex-1 min-w-0 pr-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
               Pilot Kit · {job.company}
             </p>
             {(card?.type === 'single_qa' || card?.type === 'qa') && (
@@ -753,7 +753,7 @@ function ReadyStage({ kit, job, matchId, onOpenPortal }) {
             <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           </button>
           <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-slate-800">
-            <MessageSquare className="w-3 h-3 text-violet-500 shrink-0" />
+            <MessageSquare className="w-3 h-3 text-emerald-500 shrink-0" />
             <span className="text-xs text-gray-500 dark:text-gray-400">Live Q&A</span>
           </div>
           <div className="w-9 h-9" /> {/* spacer */}
@@ -765,7 +765,7 @@ function ReadyStage({ kit, job, matchId, onOpenPortal }) {
         {dpipSupported && !dpipOpen && (
           <button
             onClick={handleDPIP}
-            className="mb-3 w-full py-2.5 rounded-xl border border-violet-200 dark:border-violet-800 text-sm font-medium text-violet-600 dark:text-violet-400 flex items-center justify-center gap-2 active:bg-violet-50 dark:active:bg-violet-900/20 transition-colors"
+            className="mb-3 w-full py-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800 text-sm font-medium text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-2 active:bg-emerald-50 dark:active:bg-emerald-900/20 transition-colors"
           >
             <Monitor className="w-4 h-4" />
             Keep Kit visible while applying

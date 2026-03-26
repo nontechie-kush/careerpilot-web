@@ -17,7 +17,7 @@ import { MapPin, X, Bookmark } from 'lucide-react';
 // Deterministic color from company name
 function companyColor(name) {
   const colors = [
-    'bg-violet-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500',
+    'bg-emerald-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500',
     'bg-rose-500', 'bg-indigo-500', 'bg-teal-500', 'bg-orange-500',
   ];
   let hash = 0;
@@ -62,7 +62,7 @@ export default function JobCard({ match, onDismiss, onSave, showDismiss = true, 
   const scoreColor =
     score >= 90 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' :
     score >= 80 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
-    score >= 70 ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400' :
+    score >= 70 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' :
     'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
 
   const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency);
@@ -143,7 +143,7 @@ export default function JobCard({ match, onDismiss, onSave, showDismiss = true, 
               )}
               <span className={`tag-pill text-[10px] py-0.5 ${
                 isEasyApply
-                  ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300'
+                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
                   : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400'
               }`}>
                 {isEasyApply ? '⚡ ' : ''}{applyLabel}
@@ -167,7 +167,7 @@ export default function JobCard({ match, onDismiss, onSave, showDismiss = true, 
             {posted && `Posted ${posted}`}
             {job.repost_count > 0 && ` · reposted ${job.repost_count}×`}
           </span>
-          <span className="text-violet-600 dark:text-violet-400 text-xs font-medium">View details →</span>
+          <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium">View details →</span>
         </div>
       </Link>
     </motion.div>

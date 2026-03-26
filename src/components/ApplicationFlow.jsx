@@ -23,7 +23,7 @@ function LoadingStep({ message, submessage }) {
       </div>
       <div className="w-48 bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
         <motion.div
-          className="h-full bg-gradient-to-r from-violet-500 to-blue-500 rounded-full"
+          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full"
           initial={{ width: '0%' }}
           animate={{ width: '100%' }}
           transition={{ duration: 1.4, ease: 'easeInOut' }}
@@ -163,7 +163,7 @@ export default function ApplicationFlow({ job, onClose }) {
                     Resume
                   </label>
                   <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
-                    <Paperclip className="w-4 h-4 text-violet-500" />
+                    <Paperclip className="w-4 h-4 text-emerald-500" />
                     <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
                       Alex_Johnson_Resume_2024.pdf
                     </span>
@@ -177,7 +177,7 @@ export default function ApplicationFlow({ job, onClose }) {
                     <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       AI-Generated Cover Answer
                     </label>
-                    <div className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
+                    <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                       <Edit3 className="w-3 h-3" />
                       Editable
                     </div>

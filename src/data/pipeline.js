@@ -28,9 +28,9 @@ export const stages = [
   {
     id: 'messaged',
     label: 'Messaged',
-    color: 'bg-violet-100 dark:bg-violet-900/30',
-    textColor: 'text-violet-700 dark:text-violet-300',
-    dotColor: 'bg-violet-500',
+    color: 'bg-emerald-100 dark:bg-emerald-900/30',
+    textColor: 'text-emerald-700 dark:text-emerald-300',
+    dotColor: 'bg-emerald-500',
   },
   {
     id: 'replied',

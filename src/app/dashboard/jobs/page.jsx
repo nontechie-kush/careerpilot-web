@@ -35,7 +35,7 @@ const REMOTE_FILTERS = [
 
 export default function JobsPageWrapper() {
   return (
-    <Suspense fallback={<div className="px-5 py-10 space-y-3">{[1,2,3].map(i => <SkeletonCard key={i} />)}</div>}>
+    <Suspense fallback={<div className="px-5 py-10 grid grid-cols-1 lg:grid-cols-2 gap-3">{[1,2,3,4].map(i => <SkeletonCard key={i} />)}</div>}>
       <JobsPage />
     </Suspense>
   );

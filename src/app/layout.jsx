@@ -5,7 +5,7 @@ import Providers from '@/components/Providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'CareerPilot AI — Right Jobs. Right Referrals. 10x Faster.',
+  title: 'CareerPilot AI — Right Jobs. Right Outreach. 10x Faster.',
   description: 'CareerPilot scans 20+ job sites every 4 hours, finds referral paths, and drafts your applications. You just review and apply.',
   manifest: '/manifest.json',
   appleWebApp: {

@@ -5,18 +5,21 @@
  * Creates outreach_queue jobs for the selected recruiter matches.
  * Extension polls /api/outreach/pending to pick them up.
  *
- * Body: { jobs: [{ match_id, linkedin_handle, connection_note, dm_subject, dm_body }] }
- * Returns: { queued: number, skipped: number, positions: { match_id: queue_position } }
+ * Body: { jobs: [{ match_id, linkedin_handle, connection_note, dm_subject, dm_body, outreach_method? }] }
+ * Returns: { queued, skipped, batch_id, positions }
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClientFromRequest } from '@/lib/supabase/server';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
+const VALID_METHODS = new Set(['connect', 'dm', 'email']);
+
 export async function POST(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -27,9 +30,9 @@ export async function POST(request) {
     // Cap at 15 per batch (LinkedIn daily safety limit)
     const batch = jobs.slice(0, 15);
     const matchIds = batch.map(j => j.match_id);
+    const batchId = randomUUID();
 
     // Reset stuck 'processing' jobs older than 5 minutes back to 'pending'
-    // so they don't block re-queuing if a previous run was interrupted
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     await supabase
       .from('outreach_queue')
@@ -43,7 +46,7 @@ export async function POST(request) {
       .from('outreach_queue')
       .select('recruiter_match_id, status')
       .in('recruiter_match_id', matchIds)
-      .in('status', ['pending', 'processing', 'sent', 'dm_sent']);
+      .in('status', ['pending', 'processing', 'sent', 'dm_sent', 'dm_approved']);
 
     const existingIds = new Set((existing || []).map(e => e.recruiter_match_id));
 
@@ -55,6 +58,8 @@ export async function POST(request) {
       if (existingIds.has(job.match_id)) continue;
       if (!job.linkedin_handle || !job.connection_note) continue;
 
+      const method = VALID_METHODS.has(job.outreach_method) ? job.outreach_method : 'connect';
+
       toInsert.push({
         user_id:             user.id,
         recruiter_match_id:  job.match_id,
@@ -64,13 +69,15 @@ export async function POST(request) {
         dm_body:             job.dm_body || '',
         status:              'pending',
         queue_position:      position,
+        outreach_method:     method,
+        batch_id:            batchId,
       });
       positions[job.match_id] = position;
       position++;
     }
 
     if (toInsert.length === 0) {
-      return NextResponse.json({ queued: 0, skipped: batch.length, positions: {} });
+      return NextResponse.json({ queued: 0, skipped: batch.length, batch_id: batchId, positions: {} });
     }
 
     const { error } = await supabase.from('outreach_queue').insert(toInsert);
@@ -79,6 +86,7 @@ export async function POST(request) {
     return NextResponse.json({
       queued: toInsert.length,
       skipped: batch.length - toInsert.length,
+      batch_id: batchId,
       positions,
     });
   } catch (err) {

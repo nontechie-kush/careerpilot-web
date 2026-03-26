@@ -110,7 +110,7 @@ export default function JobSearchTitlesModal({ onClose, onSaved }) {
           ) : (
             <>
               <div className="mb-6">
-                <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-1">Pilot</p>
+                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">Pilot</p>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Update your search</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Remove roles that don't fit. Add ones I missed.</p>
               </div>
@@ -125,7 +125,7 @@ export default function JobSearchTitlesModal({ onClose, onSaved }) {
                     {currentRoles.map((r) => (
                       <span
                         key={r}
-                        className="flex items-center gap-1.5 bg-violet-600 text-white text-sm font-medium px-3 py-1.5 rounded-full"
+                        className="flex items-center gap-1.5 bg-emerald-600 text-white text-sm font-medium px-3 py-1.5 rounded-full"
                       >
                         {r}
                         <button onClick={() => removeRole(r)} className="opacity-70 hover:opacity-100 leading-none">&times;</button>
@@ -146,7 +146,7 @@ export default function JobSearchTitlesModal({ onClose, onSaved }) {
                         key={title}
                         onClick={() => addMaybe(title)}
                         disabled={currentRoles.length >= 5}
-                        className="flex items-center gap-1 border border-dashed border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 text-sm font-medium px-3 py-1.5 rounded-full hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1 border border-dashed border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm font-medium px-3 py-1.5 rounded-full hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors disabled:opacity-40"
                       >
                         <span className="text-base leading-none">+</span> {title}
                       </button>
@@ -183,7 +183,7 @@ export default function JobSearchTitlesModal({ onClose, onSaved }) {
               <button
                 onClick={handleSave}
                 disabled={saving || currentRoles.length === 0}
-                className="w-full py-4 rounded-xl bg-violet-600 text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-4 rounded-xl bg-emerald-600 text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {saving ? <span className="w-4 h-4 spinner" /> : 'Save search →'}
               </button>

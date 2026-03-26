@@ -16,7 +16,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClientFromRequest } from '@/lib/supabase/server';
 import { buildCandidateSummary, makeProfileHash, scoreBatch } from '@/lib/ai/match';
 
 export const maxDuration = 300;
@@ -52,7 +52,7 @@ export async function POST(request) {
       userId = body.user_id;
       if (!userId) return NextResponse.json({ error: 'user_id required' }, { status: 400 });
     } else {
-      const supabase = await createClient();
+      const supabase = await createClientFromRequest(request);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       userId = user.id;

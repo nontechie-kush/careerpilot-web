@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useInView } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
@@ -57,156 +57,142 @@ function Navbar({ onSignIn }) {
   );
 }
 
-// ── Hero — headline left, import UI right ────────────────────
-function HeroSection({ onFileSelected, onWebsiteSubmit }) {
+// ── Hero comparison — single rotating slot ────────────────────
+const comparisonRows = [
+  { without: 'Spend hours searching for relevant jobs across portals', with: '50k+ roles auto-searched. Every 6 hours. The entire web.' },
+  { without: 'Send random connect requests on Linkedin everyday', with: '1000+ Verified recruiter list. 1 click reachout.' },
+  { without: 'Bombard everyone at the target company for a referral', with: 'Top 3 key company connects to seek referral. Period.' },
+  { without: 'Spend hours on filling job applications. Copy-paste. Repeat.', with: 'Automate boring tasks. Focus on Interview prep.' },
+];
+
+function RotatingComparison() {
   const darkMode = useStore((s) => s.darkMode);
-  const fileInputRef = useRef(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [websiteUrl, setWebsiteUrl] = useState('');
-  const [error, setError] = useState('');
+  const [active, setActive] = useState(0);
+  const [phase, setPhase] = useState('enter'); // 'enter' | 'strike' | 'reveal'
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-40px' });
 
-  const handleDragOver = useCallback((e) => { e.preventDefault(); setDragOver(true); }, []);
-  const handleDragLeave = useCallback(() => setDragOver(false), []);
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  }, []);
+  useEffect(() => {
+    if (!inView) return;
+    let t1, t2, t3;
 
-  const handleFile = (file) => {
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { setError('File too large. Keep it under 5MB.'); return; }
-    const ext = file.name?.toLowerCase();
-    if (!ext.endsWith('.pdf') && !ext.endsWith('.docx')) { setError('Please upload a PDF or DOCX file.'); return; }
-    setError('');
-    onFileSelected(file);
-  };
+    const runCycle = () => {
+      setPhase('enter');
+      t1 = setTimeout(() => setPhase('strike'), 1500);
+      t2 = setTimeout(() => setPhase('reveal'), 2800);
+      t3 = setTimeout(() => {
+        setActive((p) => (p + 1) % comparisonRows.length);
+      }, 6000);
+    };
 
-  const handleWebsite = () => {
-    const url = websiteUrl.trim();
-    if (!url) return;
-    onWebsiteSubmit(url.startsWith('http') ? url : 'https://' + url);
-  };
+    runCycle();
+    const iv = setInterval(runCycle, 6000);
+    return () => { clearInterval(iv); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [inView]);
+
+  const row = comparisonRows[active];
 
   return (
-    <section className="pt-28 lg:pt-36 pb-12 lg:pb-16 px-5 lg:px-8 max-w-6xl mx-auto">
-      <div className="lg:grid lg:grid-cols-2 lg:gap-16 lg:items-center">
-        {/* ── Left: Headline ── */}
-        <div>
-          <motion.h1
-            {...fadeUp(0)}
-            className={`text-[32px] sm:text-[38px] xl:text-[50px] font-extrabold tracking-[-0.04em] leading-[1.08] mb-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}
-          >
-            Right Jobs.{' '}
-            <br className="hidden sm:block" />
-            Right Referrals.{' '}
-            <br />
-            <span className="text-emerald-600">10x Faster.</span>
-          </motion.h1>
-
-          <motion.p
-            {...fadeUp(0.06)}
-            className={`text-[15px] leading-relaxed max-w-sm mb-6 lg:mb-0 ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}
-          >
-            Scans 20+ job sites. Finds referral paths. Drafts applications. Every 4 hours.
-          </motion.p>
-        </div>
-
-        {/* ── Right: Import UI ── */}
-        <motion.div {...fadeUp(0.12)} className="max-w-md lg:max-w-none">
-          <div className={`rounded-2xl p-6 lg:p-7 border ${darkMode ? 'border-white/[0.08] bg-[hsl(240,4%,7%)]' : 'border-gray-200 bg-white shadow-lg shadow-gray-200/40'}`}>
-            <h2 className={`text-lg font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Get started
-            </h2>
-
-            {/* Upload */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`w-full rounded-xl p-4 flex items-center gap-3.5 transition-all active:scale-[0.98] text-left ${dragOver ? 'scale-[1.01]' : ''} ${darkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-emerald-50/50'}`}
-              style={{
-                background: darkMode
-                  ? (dragOver ? 'rgba(16,185,129,0.05)' : 'hsl(240 5% 10%)')
-                  : (dragOver ? 'rgba(16,185,129,0.04)' : '#fafafa'),
-                border: `2px dashed ${dragOver
-                  ? 'rgba(16,185,129,0.6)'
-                  : (darkMode ? 'rgba(255,255,255,0.1)' : '#d1d5db')}`,
-              }}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${darkMode ? 'bg-emerald-400/10' : 'bg-emerald-50'}`}>
-                <Upload className="w-4.5 h-4.5 text-emerald-600" />
-              </div>
-              <div>
-                <p className={`font-semibold text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>Upload resume or portfolio</p>
-                <p className={`text-xs mt-0.5 ${darkMode ? 'text-slate-500' : 'text-gray-500'}`}>PDF or Word · Drag & drop or click</p>
-              </div>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-            />
-
-            {/* Website URL */}
-            <div className="flex gap-2 mt-3">
-              <div className="relative flex-1">
-                <Globe className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`} />
-                <input
-                  type="url"
-                  placeholder="Or paste portfolio / website URL"
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleWebsite()}
-                  className={`w-full rounded-xl pl-10 pr-4 py-3 text-sm outline-none transition-all ${darkMode ? 'bg-[hsl(240,5%,10%)] border border-white/[0.08] text-white placeholder:text-slate-600 focus:ring-1 focus:ring-emerald-400/40' : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30'}`}
-                />
-              </div>
-              <button
-                onClick={handleWebsite}
-                disabled={!websiteUrl.trim()}
-                className="px-4 rounded-xl bg-emerald-600 text-white font-bold text-sm disabled:opacity-40 hover:bg-emerald-700 transition-colors"
-              >
-                Go
-              </button>
-            </div>
-
-            {/* Tertiary links */}
-            <div className={`flex items-center gap-4 mt-3 text-xs ${darkMode ? 'text-slate-500' : 'text-gray-500'}`}>
-              <button
-                onClick={() => {
-                  sessionStorage.setItem('careerpilot_import', JSON.stringify({ method: 'paste', showPaste: true }));
-                  window.location.href = '/auth/signup?method=paste';
-                }}
-                className={`flex items-center gap-1 hover:underline ${darkMode ? 'hover:text-slate-300' : 'hover:text-gray-700'}`}
-              >
-                <FileText className="w-3 h-3" /> Paste text
-              </button>
-              <span className={darkMode ? 'text-slate-700' : 'text-gray-300'}>|</span>
-              <button
-                onClick={() => window.location.href = '/auth/signup?method=manual'}
-                className={`hover:underline ${darkMode ? 'hover:text-slate-300' : 'hover:text-gray-700'}`}
-              >
-                No resume? Fill in details
-              </button>
-            </div>
-
-            {error && (
-              <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-red-500" /> {error}
-              </p>
-            )}
-
-            <p className={`text-[11px] mt-4 flex items-center gap-1.5 ${darkMode ? 'text-slate-600' : 'text-gray-400'}`}>
-              <Shield className="w-3 h-3" />
-              Free for 14 days · No credit card
-            </p>
-          </div>
-        </motion.div>
+    <div ref={ref} className="text-center min-h-[80px] flex flex-col items-center justify-center">
+      {/* Without — with animated strikethrough */}
+      <div className="mb-2.5 px-4">
+        <motion.span
+          key={`w-${active}`}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          style={{
+            textDecorationLine: phase === 'strike' || phase === 'reveal' ? 'line-through' : 'none',
+            textDecorationColor: darkMode ? 'rgba(248,113,113,0.6)' : 'rgba(248,113,113,0.7)',
+            textDecorationThickness: '1.5px',
+            textDecorationStyle: 'solid',
+            transition: 'text-decoration-line 0.3s ease',
+          }}
+          className={`text-[16px] sm:text-[18px] ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}
+        >
+          {row.without}
+        </motion.span>
       </div>
+
+      {/* With — slides up after strike */}
+      <motion.div
+        key={`r-${active}`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{
+          opacity: phase === 'reveal' ? 1 : 0,
+          y: phase === 'reveal' ? 0 : 10,
+        }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="flex items-start justify-center gap-2 px-4"
+      >
+        <CheckCircle className={`w-[18px] h-[18px] shrink-0 mt-0.5 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
+        <span className={`text-[16px] sm:text-[18px] font-semibold ${darkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+          {row.with}
+        </span>
+      </motion.div>
+
+      {/* Progress dots */}
+      <div className="flex items-center gap-2.5 mt-5">
+        {comparisonRows.map((_, i) => (
+          <div
+            key={i}
+            className={`h-1.5 rounded-full transition-all duration-500 ${
+              i === active
+                ? `w-6 ${darkMode ? 'bg-emerald-400' : 'bg-emerald-600'}`
+                : `w-1.5 ${darkMode ? 'bg-white/15' : 'bg-gray-300'}`
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Hero — centered single column ─────────────────────────────
+function HeroSection() {
+  const darkMode = useStore((s) => s.darkMode);
+
+  return (
+    <section className="pt-24 lg:pt-32 pb-4 lg:pb-6 px-5 lg:px-8 max-w-3xl mx-auto">
+      {/* ── Centered headline ── */}
+      <div className="text-center mb-8 lg:mb-10">
+        <motion.p
+          {...fadeUp(0)}
+          className={`text-[11px] font-semibold tracking-[0.16em] uppercase mb-3 ${darkMode ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}
+        >
+          CareerPilot AI
+        </motion.p>
+
+        <motion.h1
+          {...fadeUp(0.04)}
+          className={`text-[34px] sm:text-[48px] xl:text-[58px] font-extrabold tracking-[-0.04em] leading-[1.05] ${darkMode ? 'text-white' : 'text-gray-900'}`}
+        >
+          Right Jobs. Right Outreach.{' '}
+          <br className="hidden sm:block" />
+          <span className="text-emerald-600">10x Faster.</span>
+        </motion.h1>
+      </div>
+
+      {/* ── Centered rotating comparison ── */}
+      <motion.div {...fadeUp(0.1)} className="mb-10">
+        <RotatingComparison />
+      </motion.div>
+
+      {/* ── CTAs ── */}
+      <motion.div {...fadeUp(0.15)} className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+        <button
+          onClick={() => window.location.href = '/auth/signup'}
+          className="px-8 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[15px] transition-all active:scale-[0.97] flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+        >
+          Get your CareerPilot <ArrowRight className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+          className={`px-8 py-3.5 rounded-xl font-semibold text-[15px] transition-all border ${darkMode ? 'border-white/[0.1] text-slate-300 hover:bg-white/[0.04]' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+        >
+          See how it works
+        </button>
+      </motion.div>
     </section>
   );
 }
@@ -218,22 +204,49 @@ const portals = [
   'Arc', 'IIMJobs', 'Instahyre', 'TopStartups',
 ];
 
+const recruiterProfiles = [
+  'VP Sales, Google', 'Talent Acquisition, Amazon', 'CPO, Razorpay',
+  'Director - Product, Netflix', 'CTO, Zerodha', 'Tech Recruiter, Microsoft',
+  'Hiring Manager, Flipkart', 'Business Head, Reliance', 'VP Engineering, Meta',
+  'Talent Partner, Sequoia', 'Director - Hiring, Adani Group', 'CTO, CRED',
+  'Head of People, Swiggy', 'Tech Recruiter, Apple', 'CPO, PhonePe',
+];
+
 function TrustStrip() {
   const darkMode = useStore((s) => s.darkMode);
   return (
     <section className={`py-6 border-y overflow-hidden ${darkMode ? 'border-white/[0.06]' : 'border-gray-100'}`}>
+      {/* Scanning jobs */}
       <p className={`text-center text-[11px] font-medium uppercase tracking-widest mb-4 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
         Scanning jobs from
       </p>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 mb-6">
         <div className="flex items-center gap-3 animate-portal-scroll" style={{ width: 'max-content' }}>
           {[...portals, ...portals].map((name, i) => (
             <span
-              key={`${name}-${i}`}
+              key={`p-${name}-${i}`}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg border whitespace-nowrap ${darkMode ? 'border-white/[0.06] bg-white/[0.02]' : 'border-gray-100 bg-white'}`}
             >
               <Globe className={`w-3 h-3 shrink-0 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
               <span className={`text-[13px] font-medium ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>{name}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Curating recruiters */}
+      <p className={`text-center text-[11px] font-medium uppercase tracking-widest mb-4 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
+        Curating recruiters
+      </p>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 animate-portal-scroll-reverse" style={{ width: 'max-content' }}>
+          {[...recruiterProfiles, ...recruiterProfiles].map((profile, i) => (
+            <span
+              key={`r-${profile}-${i}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border whitespace-nowrap ${darkMode ? 'border-white/[0.06] bg-white/[0.02]' : 'border-gray-100 bg-white'}`}
+            >
+              <Users className={`w-3 h-3 shrink-0 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
+              <span className={`text-[13px] font-medium ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>{profile}</span>
             </span>
           ))}
         </div>
@@ -246,22 +259,22 @@ function TrustStrip() {
 const outcomes = [
   {
     icon: Briefcase,
-    title: 'Jobs found for you',
-    desc: '20+ sites scanned every 4 hours. Only roles that match your profile show up.',
-    stat: '20+',
-    statLabel: 'job sites',
+    title: '50k+ roles auto-searched',
+    desc: 'Every 6 hours, across the entire web. Only roles that match your profile show up.',
+    stat: '50k+',
+    statLabel: 'roles scanned',
   },
   {
     icon: Users,
-    title: 'Right people at every company',
-    desc: 'Hiring managers and recruiters matched to each job. Ready to message via LinkedIn or email.',
+    title: 'Instant Outreach — 1000+ recruiters for you',
+    desc: 'Handpicked recruiters matched to your profile. Plus top 3 referral contacts per role.',
     stat: '1-click',
-    statLabel: 'outreach',
+    statLabel: 'reachout',
   },
   {
     icon: FileText,
-    title: 'Applications drafted from your resume',
-    desc: 'Cover letters, bios, and screening answers — pre-written. You review, tweak, submit.',
+    title: 'Applications on autopilot',
+    desc: 'Cover letters, bios, screening answers — auto-drafted from your resume. You review and send.',
     stat: '< 2 min',
     statLabel: 'per apply',
   },
@@ -280,10 +293,10 @@ function OutcomesSection() {
         className="text-center mb-10"
       >
         <h2 className={`text-[24px] lg:text-[32px] font-bold tracking-[-0.03em] leading-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          You open your phone to this. Every day.
+          You wake up to this. Every day.
         </h2>
         <p className={`text-sm mt-2 ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-          No searching. No scrolling job sites. No cold-emailing strangers.
+          No searching. No scrolling job portals. No cold-emailing strangers.
         </p>
       </motion.div>
 
@@ -312,113 +325,388 @@ function OutcomesSection() {
   );
 }
 
-// ── Referrals — Unified Section ──────────────────────────────
-function ReferralsSection() {
+// ── Outreach — Animated Demo Section ─────────────────────────
+const demoRecruiters = [
+  { name: 'Priya Sharma', title: 'VP Sales · Google', initials: 'PS', color: 'bg-blue-500', match: 92 },
+  { name: 'Ravi Patel', title: 'Head of Talent · Razorpay', initials: 'RP', color: 'bg-amber-500', match: 88 },
+  { name: 'Sarah Chen', title: 'Director Hiring · Netflix', initials: 'SC', color: 'bg-red-500', match: 85 },
+  { name: 'Amit Verma', title: 'Tech Recruiter · Microsoft', initials: 'AV', color: 'bg-emerald-500', match: 82 },
+  { name: 'Meera K.', title: 'Talent Partner · Sequoia', initials: 'MK', color: 'bg-emerald-500', match: 79 },
+];
+
+function OutreachDemo() {
+  const darkMode = useStore((s) => s.darkMode);
+  const [step, setStep] = useState(0);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-60px' });
+  const [typedText, setTypedText] = useState('');
+  const [selectedRole, setSelectedRole] = useState(false);
+  const [selectedRecruiters, setSelectedRecruiters] = useState([]);
+  const noteText = 'Hi Priya, I noticed Google is scaling the growth team. With 5 years in product-led growth, I\'d love to connect...';
+  const linkedinNote = 'Hi Priya,\n\nI admire your work scaling growth teams at Google. With 5 years driving product-led growth at Series B\u2013D startups, I\'d love to connect and exchange notes!\n\nBest,\nKushendra';
+  const [linkedinTyped, setLinkedinTyped] = useState('');
+
+  useEffect(() => {
+    if (!inView) return;
+    let timeouts = [];
+
+    const run = () => {
+      // Reset
+      setStep(0); setSelectedRole(false); setSelectedRecruiters([]); setTypedText(''); setLinkedinTyped('');
+
+      // Step 0: Show role list, cursor clicks "Growth Manager"
+      timeouts.push(setTimeout(() => setSelectedRole(true), 1200));
+
+      // Step 1: Recruiter list appears
+      timeouts.push(setTimeout(() => setStep(1), 2200));
+
+      // Step 2: Select recruiters one by one
+      timeouts.push(setTimeout(() => setSelectedRecruiters([0]), 3200));
+      timeouts.push(setTimeout(() => setSelectedRecruiters([0, 1]), 3800));
+      timeouts.push(setTimeout(() => setSelectedRecruiters([0, 1, 2]), 4400));
+
+      // Step 3: AI curates note + Start Outreach
+      timeouts.push(setTimeout(() => setStep(2), 5400));
+
+      // Type the note
+      for (let i = 0; i < noteText.length; i++) {
+        timeouts.push(setTimeout(() => setTypedText(noteText.slice(0, i + 1)), 5800 + i * 25));
+      }
+
+      // Step 3: Click start outreach → LinkedIn profile appears
+      const s3 = 5800 + noteText.length * 25 + 800;
+      timeouts.push(setTimeout(() => setStep(3), s3));
+
+      // Step 4: "Add a note" modal → type the LinkedIn note
+      const s4 = s3 + 1500;
+      timeouts.push(setTimeout(() => setStep(4), s4));
+      for (let i = 0; i < linkedinNote.length; i++) {
+        timeouts.push(setTimeout(() => setLinkedinTyped(linkedinNote.slice(0, i + 1)), s4 + 300 + i * 20));
+      }
+
+      // Step 5: Send → toast
+      const s5 = s4 + 300 + linkedinNote.length * 20 + 1000;
+      timeouts.push(setTimeout(() => setStep(5), s5));
+
+      // Restart cycle
+      timeouts.push(setTimeout(run, s5 + 4000));
+    };
+
+    run();
+    return () => timeouts.forEach(clearTimeout);
+  }, [inView]);
+
+  const cardBg = darkMode ? 'border-white/[0.08] bg-[hsl(240,4%,8%)]' : 'border-gray-100 bg-white shadow-sm';
+  const cardInner = darkMode ? 'border-white/[0.06] bg-[hsl(240,5%,7%)]' : 'border-gray-100 bg-gray-50';
+
+  // Which phase is active: 0 = role/recruiters, 1 = AI note, 2 = LinkedIn
+  const phase = step <= 1 ? 0 : step === 2 ? 1 : 2;
+
+  return (
+    <div ref={ref} className={`rounded-2xl border p-3 sm:p-5 overflow-hidden relative ${cardBg}`}>
+
+      {/* Fixed-height stage — all panels absolutely positioned, crossfade via opacity */}
+      <div className="relative h-[320px] sm:h-[580px]">
+
+        {/* Panel 0: Role selection + Recruiter list */}
+        <motion.div
+          animate={{ opacity: phase === 0 ? 1 : 0 }}
+          transition={{ duration: 0.4 }}
+          className="absolute inset-0"
+          style={{ pointerEvents: phase === 0 ? 'auto' : 'none' }}
+        >
+          <p className={`text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider mb-2 sm:mb-3 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
+            Select a role
+          </p>
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+            {['Product Manager', 'Growth Manager', 'Data Analyst'].map((role) => (
+              <motion.div
+                key={role}
+                animate={role === 'Growth Manager' && selectedRole ? { scale: [1, 0.95, 1] } : {}}
+                transition={{ duration: 0.2 }}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-[12px] font-medium border transition-all ${
+                  role === 'Growth Manager' && selectedRole
+                    ? (darkMode ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-400 ring-2 ring-emerald-400/30' : 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-200')
+                    : (darkMode ? 'border-white/[0.08] text-slate-400' : 'border-gray-200 text-gray-500')
+                }`}
+              >
+                {role}
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Recruiter list — appears after role selected */}
+          <motion.div
+            animate={{ opacity: step >= 1 ? 1 : 0, y: step >= 1 ? 0 : 10 }}
+            transition={{ duration: 0.4 }}
+          >
+            {step >= 1 && (
+              <>
+                <p className={`text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider mb-2 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
+                  Matched recruiters
+                </p>
+                <div className="space-y-1 sm:space-y-1.5">
+                  {demoRecruiters.map((r, i) => (
+                    <motion.div
+                      key={r.name}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 rounded-lg sm:rounded-xl border transition-all ${
+                        selectedRecruiters.includes(i)
+                          ? (darkMode ? 'border-emerald-400/30 bg-emerald-400/[0.06] ring-1 ring-emerald-400/20' : 'border-emerald-300 bg-emerald-50/50 ring-1 ring-emerald-200')
+                          : cardInner
+                      }`}
+                    >
+                      <div className={`w-3 h-3 sm:w-2.5 sm:h-2.5 rounded border-2 shrink-0 flex items-center justify-center ${
+                        selectedRecruiters.includes(i)
+                          ? 'border-emerald-500 bg-emerald-500'
+                          : (darkMode ? 'border-white/20' : 'border-gray-300')
+                      }`}>
+                        {selectedRecruiters.includes(i) && (
+                          <motion.svg initial={{ scale: 0 }} animate={{ scale: 1 }} width="8" height="8" viewBox="0 0 10 10" fill="none">
+                            <path d="M2 5L4.5 7.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                          </motion.svg>
+                        )}
+                      </div>
+                      <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full ${r.color} flex items-center justify-center text-[8px] sm:text-[9px] font-bold text-white shrink-0`}>
+                        {r.initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-[11px] sm:text-[12px] font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{r.name}</div>
+                        <div className={`text-[9px] sm:text-[10px] truncate ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>{r.title}</div>
+                      </div>
+                      <div className={`text-[10px] sm:text-[11px] font-bold shrink-0 ${r.match >= 85 ? 'text-emerald-600' : (darkMode ? 'text-slate-400' : 'text-gray-500')}`}>
+                        {r.match}%
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
+          </motion.div>
+        </motion.div>
+
+        {/* Panel 1: AI curating note */}
+        <motion.div
+          animate={{ opacity: phase === 1 ? 1 : 0 }}
+          transition={{ duration: 0.4 }}
+          className="absolute inset-0"
+          style={{ pointerEvents: phase === 1 ? 'auto' : 'none' }}
+        >
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <p className={`text-[11px] sm:text-[12px] font-semibold ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+              Pilot is crafting personalized notes...
+            </p>
+          </div>
+          <div className={`rounded-lg sm:rounded-xl border p-2.5 sm:p-3 mb-3 sm:mb-4 ${cardInner}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-500 flex items-center justify-center text-[8px] sm:text-[9px] font-bold text-white">PS</div>
+              <div>
+                <div className={`text-[11px] sm:text-[12px] font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Priya Sharma</div>
+                <div className={`text-[9px] sm:text-[10px] ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>VP Sales · Google</div>
+              </div>
+            </div>
+            <div className={`rounded-lg p-2 sm:p-2.5 min-h-[40px] sm:min-h-[48px] ${darkMode ? 'bg-white/[0.03]' : 'bg-white'}`}>
+              <p className={`text-[10px] sm:text-[11px] leading-relaxed ${darkMode ? 'text-slate-300' : 'text-gray-600'}`}>
+                {typedText}<span className="animate-pulse">|</span>
+              </p>
+            </div>
+          </div>
+          <motion.button
+            animate={{ scale: step === 2 ? [1, 1.03, 1] : 1 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+            className="w-full py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-emerald-600 text-white text-[12px] sm:text-[13px] font-bold flex items-center justify-center gap-2"
+          >
+            <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Start Outreach Automation
+          </motion.button>
+        </motion.div>
+
+        {/* Panel 2: LinkedIn automation */}
+        <motion.div
+          animate={{ opacity: phase === 2 ? 1 : 0 }}
+          transition={{ duration: 0.4 }}
+          className="absolute inset-0 overflow-y-auto scrollbar-none"
+          style={{ pointerEvents: phase === 2 ? 'auto' : 'none' }}
+        >
+          {/* Pilot running banner */}
+          <div
+            className={`flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-4 py-1.5 sm:py-2.5 rounded-lg mb-2 sm:mb-4 ${darkMode ? 'bg-emerald-400/10 border border-emerald-400/20' : 'bg-emerald-50 border border-emerald-200'}`}
+          >
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className={`text-[9px] sm:text-[12px] font-semibold leading-tight ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>
+              Pilot is automating — opening profiles, adding notes, sending requests...
+            </span>
+          </div>
+
+          {/* LinkedIn profile card */}
+          <div className="rounded-lg sm:rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
+            {/* Cover + avatar */}
+            <div className="h-8 sm:h-20 bg-gradient-to-r from-[#1a3a5c] to-[#2d5f8a] relative">
+              <div className="absolute -bottom-4 sm:-bottom-6 left-2.5 sm:left-4">
+                <div className="w-8 h-8 sm:w-14 sm:h-14 rounded-full bg-blue-500 border-2 sm:border-[3px] border-white flex items-center justify-center text-[10px] sm:text-[16px] font-bold text-white shadow-md">
+                  PS
+                </div>
+              </div>
+            </div>
+            <div className="pt-5 sm:pt-8 pb-2 sm:pb-3 px-2.5 sm:px-4">
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <span className="text-[11px] sm:text-[15px] font-bold text-gray-900">Priya Sharma</span>
+                <svg className="w-3 h-3 sm:w-4 sm:h-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#0a66c2"/><path d="M4.5 8L7 10.5L11.5 6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span className="text-[9px] sm:text-[12px] text-gray-500">· 2nd</span>
+              </div>
+              <p className="text-[9px] sm:text-[12px] text-gray-600 mt-0.5 line-clamp-1">VP Sales at Google | Scaling growth teams across APAC</p>
+              <p className="text-[8px] sm:text-[11px] text-gray-500">Mumbai, India · <span className="text-[#0a66c2] font-medium">Contact info</span></p>
+              <p className="text-[8px] sm:text-[11px] text-gray-500">12,340 followers</p>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-1 sm:gap-2 mt-1.5 sm:mt-3 flex-wrap">
+                <span className="px-2.5 sm:px-4 py-0.5 sm:py-1.5 rounded-full bg-[#0a66c2] text-white text-[9px] sm:text-[12px] font-semibold">Message</span>
+                {step >= 5
+                  ? <span className="px-2.5 sm:px-4 py-0.5 sm:py-1.5 rounded-full border border-gray-400 text-[9px] sm:text-[12px] font-semibold text-gray-600 flex items-center gap-1">
+                      <svg className="w-2 h-2 sm:w-3 sm:h-3" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M8 4V8.5H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      Pending
+                    </span>
+                  : <span className="px-2.5 sm:px-4 py-0.5 sm:py-1.5 rounded-full border border-[#0a66c2] text-[9px] sm:text-[12px] font-semibold text-[#0a66c2]">Connect</span>
+                }
+                <span className="px-2.5 sm:px-4 py-0.5 sm:py-1.5 rounded-full border border-gray-400 text-[9px] sm:text-[12px] font-semibold text-gray-600">More</span>
+              </div>
+            </div>
+          </div>
+
+          {/* LinkedIn "Add a note" modal */}
+          <motion.div
+            animate={{ opacity: step < 5 ? 1 : 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-2 sm:mt-4 rounded-lg sm:rounded-xl bg-white border border-gray-200 shadow-xl overflow-hidden"
+            style={{ pointerEvents: step < 5 ? 'auto' : 'none' }}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-2.5 sm:px-5 pt-2 sm:pt-4 pb-1 sm:pb-3">
+              <h3 className="text-[11px] sm:text-[16px] font-semibold text-gray-900">Add a note to your invitation</h3>
+              <span className="text-gray-400 text-[14px] sm:text-[18px] cursor-default">×</span>
+            </div>
+
+            <div className="px-2.5 sm:px-5 pb-2 sm:pb-4">
+              <p className="text-[9px] sm:text-[13px] text-gray-600 mb-1.5 sm:mb-3 leading-relaxed">
+                Personalize your invitation to <strong>Priya Sharma</strong> by adding a note.
+              </p>
+
+              {/* Textarea */}
+              <div className="border border-gray-900 rounded-md overflow-hidden mb-0.5">
+                <div className="p-1.5 sm:p-3 min-h-[44px] sm:min-h-[80px] text-[9px] sm:text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {step >= 4 && linkedinTyped ? (
+                    <span>{linkedinTyped}<span className="animate-pulse">|</span></span>
+                  ) : (
+                    <span className="text-gray-400">Ex: We know each other from...</span>
+                  )}
+                </div>
+              </div>
+              <p className="text-right text-[8px] sm:text-[11px] text-gray-500 mb-1 sm:mb-3">
+                {linkedinTyped.length}/300
+              </p>
+
+              {/* Bottom buttons */}
+              <div className="flex items-center justify-end">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="text-[9px] sm:text-[13px] font-semibold text-gray-500">Cancel</span>
+                  <motion.span
+                    animate={{ backgroundColor: linkedinTyped.length > 20 ? '#0a66c2' : '#e5e7eb', color: linkedinTyped.length > 20 ? '#ffffff' : '#9ca3af' }}
+                    className="px-2.5 sm:px-5 py-0.5 sm:py-1.5 rounded-full text-[9px] sm:text-[13px] font-semibold"
+                  >
+                    Send
+                  </motion.span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Green toast — "Invitation sent" */}
+          <motion.div
+            animate={{ opacity: step >= 5 ? 1 : 0, y: step >= 5 ? 0 : 10 }}
+            transition={{ duration: 0.3 }}
+            className="mt-2 sm:mt-4 flex items-center gap-1.5 sm:gap-3 px-2 sm:px-4 py-1.5 sm:py-3 bg-white rounded-lg sm:rounded-xl border border-gray-200 shadow-lg"
+            style={{ pointerEvents: step >= 5 ? 'auto' : 'none' }}
+          >
+            <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+              <svg className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" viewBox="0 0 16 16" fill="none"><path d="M4 8L7 11L12 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+            <span className="text-[9px] sm:text-[13px] text-gray-800 font-medium">Invitation sent to Priya Sharma.</span>
+            <span className="ml-auto text-gray-400 text-[10px] sm:text-[14px]">×</span>
+          </motion.div>
+
+          {/* Progress indicator */}
+          <motion.div
+            animate={{ opacity: step >= 5 ? 1 : 0 }}
+            transition={{ duration: 0.3, delay: 0.5 }}
+            className={`mt-1.5 sm:mt-3 flex items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-4 py-1 sm:py-2 rounded-lg ${darkMode ? 'bg-white/[0.03]' : 'bg-gray-50'}`}
+          >
+            <span className={`text-[10px] sm:text-[12px] font-medium whitespace-nowrap ${darkMode ? 'text-slate-300' : 'text-gray-700'}`}>Pilot: 1 of 3 sent</span>
+            <div className={`flex-1 h-1 sm:h-1.5 rounded-full max-w-[80px] sm:max-w-[120px] ${darkMode ? 'bg-white/10' : 'bg-gray-200'}`}>
+              <motion.div
+                animate={{ width: step >= 5 ? '33%' : '0%' }}
+                transition={{ duration: 1 }}
+                className="h-full rounded-full bg-emerald-500"
+              />
+            </div>
+            <span className={`text-[9px] sm:text-[11px] whitespace-nowrap ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>Moving to next...</span>
+          </motion.div>
+        </motion.div>
+
+      </div>
+
+      {/* Step indicator dots */}
+      <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-2.5 sm:mt-4">
+        {['Select role', 'Pick recruiters', 'AI drafts note', 'Auto-send'].map((label, i) => {
+          const stepMap = [0, 1, 2, 3];
+          const isActive = step >= stepMap[i] && (i === 3 ? step >= 3 : step < stepMap[i + 1] || i === 3);
+          const isPast = i < 3 ? step >= stepMap[i + 1] : step >= 5;
+          return (
+            <div key={label} className="flex items-center gap-2">
+              <div className={`flex items-center gap-1.5 ${isPast ? (darkMode ? 'text-emerald-400' : 'text-emerald-600') : isActive ? (darkMode ? 'text-white' : 'text-gray-900') : (darkMode ? 'text-slate-600' : 'text-gray-300')}`}>
+                <div className={`w-1.5 h-1.5 rounded-full transition-colors ${isPast ? 'bg-emerald-500' : isActive ? (darkMode ? 'bg-white' : 'bg-gray-900') : (darkMode ? 'bg-slate-600' : 'bg-gray-300')}`} />
+                <span className="text-[9px] font-medium hidden sm:inline">{label}</span>
+              </div>
+              {i < 3 && <div className={`w-4 h-px ${darkMode ? 'bg-white/10' : 'bg-gray-200'}`} />}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OutreachSection() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-80px' });
   const darkMode = useStore((s) => s.darkMode);
 
   return (
-    <section className="py-16 lg:py-20 px-5 lg:px-8 max-w-6xl mx-auto" ref={ref}>
+    <section className="py-16 lg:py-20 px-5 lg:px-8 max-w-4xl mx-auto" ref={ref}>
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
-        className="mb-8"
+        className="text-center mb-8"
       >
-        <p className={`text-[11px] font-semibold tracking-widest uppercase mb-2 ${darkMode ? 'text-violet-400' : 'text-violet-600'}`}>
-          Your unfair advantage
+        <p className={`text-[11px] font-semibold tracking-widest uppercase mb-2 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+          1 click outreach
         </p>
-        <h2 className={`text-[24px] lg:text-[32px] font-bold tracking-[-0.03em] leading-tight max-w-lg ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          For every job: the right person to reach out to. For your career: a curated recruiter network.
+        <h2 className={`text-[24px] lg:text-[32px] font-bold tracking-[-0.03em] leading-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          Select. Automate. Connect.
         </h2>
-        <p className={`text-sm mt-2 max-w-lg ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-          You don&apos;t have to search LinkedIn to find people. CareerPilot identifies hiring managers per job and curates recruiters matched to your profile.
+        <p className={`text-sm mt-2 ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+          Pick recruiters matched to your profile. Pilot crafts the note and sends connect requests on LinkedIn — automatically.
         </p>
       </motion.div>
 
-      {/* Visual: Job → Person connections + Message preview */}
-      <div className="grid gap-5 lg:grid-cols-5">
-        {/* Left: Job → Person connections (3 cols) */}
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className={`lg:col-span-3 rounded-2xl border p-5 ${darkMode ? 'border-white/[0.08] bg-[hsl(240,4%,8%)]' : 'border-gray-100 bg-white shadow-sm'}`}
-        >
-          <h3 className={`text-[14px] font-bold tracking-tight mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            Hiring contacts per matched job
-          </h3>
-          <div className="space-y-3">
-            {[
-              { job: 'Product Manager', co: 'Stripe · SF', person: 'Sarah Chen', title: 'Eng Manager', initials: 'SC', color: 'bg-violet-500', status: 'Likely to respond', statusColor: 'text-emerald-600' },
-              { job: 'Growth Lead', co: 'Razorpay · Bangalore', person: 'Meera K.', title: 'Product Lead', initials: 'MK', color: 'bg-blue-500', status: 'Active this week', statusColor: 'text-emerald-600' },
-              { job: 'Sr. Engineer', co: 'Vercel · Remote', person: 'Alex T.', title: 'VP Engineering', initials: 'AT', color: 'bg-emerald-500', status: 'Likely to respond', statusColor: 'text-emerald-600' },
-            ].map((item) => (
-              <div key={item.job} className="flex items-center gap-0">
-                <div className={`flex-1 rounded-xl border p-3 ${darkMode ? 'border-white/[0.08] bg-[hsl(240,5%,7%)]' : 'border-gray-100 bg-gray-50'}`}>
-                  <div className={`text-[12px] font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{item.job}</div>
-                  <div className={`text-[10px] ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>{item.co}</div>
-                </div>
-                <div className="w-6 flex items-center justify-center shrink-0">
-                  <div className={`w-full border-t border-dashed ${darkMode ? 'border-violet-400/40' : 'border-violet-300'}`} />
-                </div>
-                <div className={`flex-1 rounded-xl border p-3 ${darkMode ? 'border-violet-400/20 bg-violet-400/[0.04]' : 'border-violet-200 bg-violet-50/50'}`}>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <div className={`w-6 h-6 rounded-full ${item.color} flex items-center justify-center text-[8px] font-bold text-white`}>{item.initials}</div>
-                    <div>
-                      <div className={`text-[12px] font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{item.person}</div>
-                      <div className={`text-[10px] ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>{item.title}</div>
-                    </div>
-                  </div>
-                  <span className={`text-[9px] flex items-center gap-1 mt-1 ${item.statusColor}`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    {item.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Right: Message preview (2 cols) */}
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className={`lg:col-span-2 rounded-2xl border p-5 ${darkMode ? 'border-white/[0.08] bg-[hsl(240,4%,8%)]' : 'border-gray-100 bg-white shadow-sm'}`}
-        >
-          <h3 className={`text-[14px] font-bold tracking-tight mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            Ready-to-send message
-          </h3>
-
-          <div className={`rounded-xl border overflow-hidden ${darkMode ? 'border-white/[0.08]' : 'border-gray-200'}`}>
-            <div className={`flex items-center gap-2.5 p-3 border-b ${darkMode ? 'border-white/[0.06] bg-[hsl(240,5%,7%)]' : 'border-gray-100 bg-gray-50'}`}>
-              <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-[9px] font-bold text-white">RP</div>
-              <div className="flex-1">
-                <div className={`text-[12px] font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Ravi Patel</div>
-                <div className={`text-[10px] ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>Sr. Recruiter · Razorpay</div>
-              </div>
-            </div>
-            <div className="p-3">
-              <p className={`text-[11px] leading-relaxed italic ${darkMode ? 'text-slate-300' : 'text-gray-600'}`}>
-                &ldquo;Hi Ravi, I saw Razorpay is scaling the growth team. 4 years driving product-led growth at Series B–D. Would love to chat about the Growth Lead role...&rdquo;
-              </p>
-            </div>
-            <div className={`flex border-t ${darkMode ? 'border-white/[0.06]' : 'border-gray-100'}`}>
-              <button className={`flex-1 py-2.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 border-r transition-colors ${darkMode ? 'text-blue-400 border-white/[0.06] hover:bg-blue-400/5' : 'text-blue-600 border-gray-100 hover:bg-blue-50'}`}>
-                <span className="text-[9px] font-bold">in</span> LinkedIn
-              </button>
-              <button className={`flex-1 py-2.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors ${darkMode ? 'text-emerald-400 hover:bg-emerald-400/5' : 'text-emerald-600 hover:bg-emerald-50'}`}>
-                <Send className="w-3 h-3" /> Email
-              </button>
-            </div>
-          </div>
-
-          <p className={`text-[10px] text-center mt-3 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
-            Personalized per recruiter · Your tone, your style
-          </p>
-        </motion.div>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={inView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.5, delay: 0.15 }}
+      >
+        <OutreachDemo />
+      </motion.div>
     </section>
   );
 }
@@ -436,7 +724,7 @@ function HowItWorksSection() {
   const darkMode = useStore((s) => s.darkMode);
 
   return (
-    <section id="how" className="py-16 lg:py-20 px-5 lg:px-8 max-w-6xl mx-auto" ref={ref}>
+    <section id="how-it-works" className="py-16 lg:py-20 px-5 lg:px-8 max-w-6xl mx-auto" ref={ref}>
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
@@ -603,26 +891,7 @@ export default function LandingPage() {
   const goSignup = () => router.push('/auth/signup');
   const goSignIn = () => router.push('/auth/login');
 
-  // Handle file import from hero → store in sessionStorage → go to signup
-  const handleFileSelected = (file) => {
-    // Store file info — actual file can't go in sessionStorage, user re-uploads on signup page
-    sessionStorage.setItem('careerpilot_import', JSON.stringify({
-      method: 'pdf',
-      fileName: file.name,
-      needsReupload: false,
-    }));
-    // We need to pass the file — store it in a module-level ref and navigate
-    window.__careerpilot_file = file;
-    router.push('/auth/signup?method=pdf');
-  };
 
-  const handleWebsiteSubmit = (url) => {
-    sessionStorage.setItem('careerpilot_import', JSON.stringify({
-      method: 'website',
-      url,
-    }));
-    router.push('/auth/signup?method=website');
-  };
 
   if (checking) {
     return (
@@ -643,18 +912,18 @@ export default function LandingPage() {
       style={{ fontFamily: "'Outfit', -apple-system, sans-serif" }}>
       <Navbar onSignIn={goSignIn} />
 
-      <HeroSection onFileSelected={handleFileSelected} onWebsiteSubmit={handleWebsiteSubmit} />
+      <HeroSection />
 
       <TrustStrip />
 
-      {/* What you get */}
-      <OutcomesSection />
+      {/* Outreach */}
+      <OutreachSection />
 
       {/* Divider */}
       <div className={`h-px mx-5 lg:max-w-6xl lg:mx-auto ${darkMode ? 'bg-white/[0.06]' : 'bg-gray-100'}`} />
 
-      {/* Referrals */}
-      <ReferralsSection />
+      {/* What you get */}
+      <OutcomesSection />
 
       <div className={`h-px mx-5 lg:max-w-6xl lg:mx-auto ${darkMode ? 'bg-white/[0.06]' : 'bg-gray-100'}`} />
 

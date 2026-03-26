@@ -12,7 +12,7 @@ const OAUTH_BASE = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
-const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
+const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send';
 
 // ── OAuth URLs ─────────────────────────────────────────────────
 

@@ -4,12 +4,12 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createClientFromRequest, createServiceClient } from '@/lib/supabase/server';
 
 // ── GET ───────────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -94,7 +94,7 @@ const VALID_IC_LEAD = new Set(['ic', 'lead', 'either']);
 
 export async function PATCH(request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -170,6 +170,20 @@ export async function PATCH(request) {
         .update({ job_search_titles: body.job_search_titles })
         .eq('user_id', user.id);
       if (error) throw error;
+    }
+
+    // If job-relevant preferences changed, trigger async re-match
+    const JOB_FIELDS = ['target_roles', 'locations', 'remote_pref', 'ic_or_lead', 'company_stage', 'salary_min', 'salary_max'];
+    const jobPrefsChanged = JOB_FIELDS.some(f => body[f] !== undefined) || hasJobSearchTitles;
+    if (jobPrefsChanged && process.env.NEXT_PUBLIC_APP_URL) {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/jobs/match`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.CRON_SECRET}`,
+        },
+        body: JSON.stringify({ user_id: user.id }),
+      }).catch(() => {});
     }
 
     return NextResponse.json({ success: true });
