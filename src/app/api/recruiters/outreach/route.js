@@ -59,66 +59,11 @@ export async function POST(request) {
       }
     }
 
-    // Fetch user profile + prefs + enrichment (mutual connections)
-    const [{ data: userRow }, { data: profile }, { data: enrichment }] = await Promise.all([
-      supabase.from('users')
-        .select('locations, target_roles, ic_or_lead, name, pilot_mode')
-        .eq('id', user.id)
-        .maybeSingle(),
-      supabase.from('profiles')
-        .select('parsed_json')
-        .eq('user_id', user.id)
-        .order('parsed_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase.from('recruiter_enrichment')
-        .select('mutual_connections, mutual_connections_count')
-        .eq('recruiter_id', match.recruiters.id)
-        .maybeSingle(),
-    ]);
-
-    const userProfile = profile?.parsed_json
-      ? profile
-      : { parsed_json: { name: userRow?.name || '', seniority: 'experienced', years_exp: 5 } };
-
-    const mutualConnections = enrichment?.mutual_connections || [];
-
-    const prompt = buildOutreachPrompt(
-      userProfile,
-      userRow,
-      match.recruiters,
-      userRow?.pilot_mode || 'steady',
-      mutualConnections,
-    );
-
-    if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY is not set');
-    }
-
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 600,
-      system: 'You output only valid JSON. No markdown, no code fences, no commentary. Just the JSON object.',
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const raw = response.content[0]?.text?.trim() || '';
-    // Strip markdown code fences if Claude wrapped the JSON
-    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-    let parsed;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      // Last resort: extract the first {...} block
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (match) {
-        try { parsed = JSON.parse(match[0]); } catch {}
-      }
-      if (!parsed) throw new Error(`Claude returned malformed JSON: ${raw.slice(0, 100)}`);
-    }
-
-    const { connection_note, dm_subject, dm_body } = parsed;
-    if (!connection_note || !dm_body) throw new Error('Claude returned incomplete draft');
+    // TODO: re-enable Claude-generated messages when ready.
+    // Using a fixed default message for now to avoid API costs during testing.
+    const connection_note = 'Hi, It would be great to connect. Regards Kushendra';
+    const dm_subject = 'Connecting on LinkedIn';
+    const dm_body = 'Hi, It would be great to connect. Regards Kushendra';
 
     // Enforce 200 char hard limit on connection_note
     const safeNote = connection_note.slice(0, 200);
