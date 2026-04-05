@@ -78,13 +78,14 @@ function buildRoleKeywords(targetRoles = []) {
 console.log('[run-matcher] starting...');
 const startedAt = Date.now();
 
-// Fetch all users with completed onboarding, most-recently-active first
+// Fetch active users with completed onboarding, most-recently-active first
 const { data: users, error: usersError } = await supabase
   .from('users')
   .select('id, locations, remote_pref, ic_or_lead, company_stage, last_active_at, target_roles')
   .eq('onboarding_completed', true)
+  .eq('is_active', true)
   .order('last_active_at', { ascending: false, nullsFirst: false })
-  .limit(500); // safety cap — 500 users is ~500 × 30 Claude calls per user
+  .limit(500);
 
 if (usersError) {
   console.error('[run-matcher] failed to fetch users:', usersError.message);
@@ -96,12 +97,20 @@ if (!users?.length) {
   process.exit(0);
 }
 
-// Filter out inactive users (no activity in last INACTIVE_DAYS)
+// Double-check: mark users inactive if last_active_at is stale
 const cutoff = new Date(Date.now() - INACTIVE_DAYS * 24 * 60 * 60 * 1000).toISOString();
-const activeUsers = users.filter(u => u.last_active_at && u.last_active_at >= cutoff);
-const skippedCount = users.length - activeUsers.length;
-if (skippedCount > 0) {
-  console.log(`[run-matcher] skipping ${skippedCount} inactive users (no activity in ${INACTIVE_DAYS}d)`);
+const activeUsers = [];
+const staleUserIds = [];
+for (const u of users) {
+  if (!u.last_active_at || u.last_active_at < cutoff) {
+    staleUserIds.push(u.id);
+  } else {
+    activeUsers.push(u);
+  }
+}
+if (staleUserIds.length > 0) {
+  await supabase.from('users').update({ is_active: false }).in('id', staleUserIds);
+  console.log(`[run-matcher] marked ${staleUserIds.length} users inactive (no activity in ${INACTIVE_DAYS}d)`);
 }
 
 if (!activeUsers.length) {

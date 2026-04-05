@@ -75,11 +75,12 @@ export async function GET(request) {
   const startedAt = Date.now();
   const results = {};
 
-  // Get most recently active users with completed onboarding
+  // Get active users with completed onboarding
   const { data: users } = await supabase
     .from('users')
     .select('id, locations, remote_pref, ic_or_lead, company_stage, last_active_at, target_roles')
     .eq('onboarding_completed', true)
+    .eq('is_active', true)
     .order('last_active_at', { ascending: false, nullsFirst: false })
     .limit(MAX_USERS_PER_RUN);
 
@@ -87,16 +88,25 @@ export async function GET(request) {
     return NextResponse.json({ message: 'No active users to match', duration_ms: Date.now() - startedAt });
   }
 
-  // Filter out inactive users (no activity in last INACTIVE_DAYS)
+  // Double-check: mark users inactive if last_active_at is stale, skip them
   const cutoff = new Date(Date.now() - INACTIVE_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const activeUsers = users.filter(u => u.last_active_at && u.last_active_at >= cutoff);
-  const skippedCount = users.length - activeUsers.length;
-  if (skippedCount > 0) {
-    console.log(`[match-jobs] skipping ${skippedCount} inactive users (no activity in ${INACTIVE_DAYS}d)`);
+  const activeUsers = [];
+  const staleUserIds = [];
+  for (const u of users) {
+    if (!u.last_active_at || u.last_active_at < cutoff) {
+      staleUserIds.push(u.id);
+    } else {
+      activeUsers.push(u);
+    }
+  }
+  // Mark stale users as inactive in DB
+  if (staleUserIds.length > 0) {
+    await supabase.from('users').update({ is_active: false }).in('id', staleUserIds);
+    console.log(`[match-jobs] marked ${staleUserIds.length} users inactive (no activity in ${INACTIVE_DAYS}d)`);
   }
 
   if (!activeUsers.length) {
-    return NextResponse.json({ message: 'No active users to match', skipped_inactive: skippedCount, duration_ms: Date.now() - startedAt });
+    return NextResponse.json({ message: 'No active users to match', marked_inactive: staleUserIds.length, duration_ms: Date.now() - startedAt });
   }
 
   for (const user of activeUsers) {

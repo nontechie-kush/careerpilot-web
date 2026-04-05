@@ -40,8 +40,8 @@ export async function GET(request) {
       .maybeSingle();
     const lastActive = userRow?.last_active_at ? new Date(userRow.last_active_at) : new Date(0);
 
-    // Touch last_active_at now (fire-and-forget)
-    supabase.from('users').update({ last_active_at: new Date().toISOString() }).eq('id', user.id).then(() => {});
+    // Touch last_active_at + reactivate user (fire-and-forget)
+    supabase.from('users').update({ last_active_at: new Date().toISOString(), is_active: true }).eq('id', user.id).then(() => {});
 
     // Main matches query
     let query = supabase

@@ -79,6 +79,7 @@ export async function POST(request) {
       onboarding_step: 3,
       search_day_count: 1,
       last_active_at: new Date().toISOString(),
+      is_active: true,
     };
 
     // Capture name from parsed CV (signup no longer collects name)

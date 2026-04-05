@@ -53,26 +53,6 @@
 .animate-blink { animation: blink 2s ease infinite; }
 .animate-chip-float { animation: chip-float 3.5s ease-in-out infinite; }
 
-@keyframes portal-scroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.animate-portal-scroll {
-  animation: portal-scroll 25s linear infinite;
-}
-.animate-portal-scroll:hover {
-  animation-play-state: paused;
-}
-@keyframes portal-scroll-reverse {
-  0% { transform: translateX(-50%); }
-  100% { transform: translateX(0); }
-}
-.animate-portal-scroll-reverse {
-  animation: portal-scroll-reverse 45s linear infinite;
-}
-.animate-portal-scroll-reverse:hover {
-  animation-play-state: paused;
-}
 
 * {
   box-sizing: border-box;

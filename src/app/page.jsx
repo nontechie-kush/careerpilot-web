@@ -215,38 +215,36 @@ const recruiterProfiles = [
 function TrustStrip() {
   const darkMode = useStore((s) => s.darkMode);
   return (
-    <section className={`py-6 border-y overflow-hidden ${darkMode ? 'border-white/[0.06]' : 'border-gray-100'}`}>
-      {/* Scanning jobs */}
-      <p className={`text-center text-[11px] font-medium uppercase tracking-widest mb-4 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
-        Scanning jobs from
-      </p>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex items-center gap-3 animate-portal-scroll" style={{ width: 'max-content' }}>
-          {[...portals, ...portals].map((name, i) => (
+    <section className={`py-8 border-y ${darkMode ? 'border-white/[0.06]' : 'border-gray-100'}`}>
+      <div className="max-w-3xl mx-auto px-6">
+        {/* Scanning jobs */}
+        <p className={`text-center text-[11px] font-medium uppercase tracking-widest mb-3 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
+          Scanning jobs from
+        </p>
+        <div className="flex flex-wrap justify-center gap-2 mb-6">
+          {portals.map((name) => (
             <span
-              key={`p-${name}-${i}`}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border whitespace-nowrap ${darkMode ? 'border-white/[0.06] bg-white/[0.02]' : 'border-gray-100 bg-white'}`}
+              key={`p-${name}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium ${darkMode ? 'bg-white/[0.04] text-slate-400' : 'bg-gray-50 text-gray-500'}`}
             >
-              <Globe className={`w-3 h-3 shrink-0 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
-              <span className={`text-[13px] font-medium ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>{name}</span>
+              <Globe className={`w-3 h-3 shrink-0 ${darkMode ? 'text-emerald-400/60' : 'text-emerald-600/50'}`} />
+              {name}
             </span>
           ))}
         </div>
-      </div>
 
-      {/* Curating recruiters */}
-      <p className={`text-center text-[11px] font-medium uppercase tracking-widest mb-4 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
-        Curating recruiters
-      </p>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-3 animate-portal-scroll-reverse" style={{ width: 'max-content' }}>
-          {[...recruiterProfiles, ...recruiterProfiles].map((profile, i) => (
+        {/* Curating recruiters */}
+        <p className={`text-center text-[11px] font-medium uppercase tracking-widest mb-3 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
+          Curating recruiters
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {recruiterProfiles.map((profile) => (
             <span
-              key={`r-${profile}-${i}`}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border whitespace-nowrap ${darkMode ? 'border-white/[0.06] bg-white/[0.02]' : 'border-gray-100 bg-white'}`}
+              key={`r-${profile}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium ${darkMode ? 'bg-white/[0.04] text-slate-400' : 'bg-gray-50 text-gray-500'}`}
             >
-              <Users className={`w-3 h-3 shrink-0 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
-              <span className={`text-[13px] font-medium ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>{profile}</span>
+              <Users className={`w-3 h-3 shrink-0 ${darkMode ? 'text-emerald-400/60' : 'text-emerald-600/50'}`} />
+              {profile}
             </span>
           ))}
         </div>
