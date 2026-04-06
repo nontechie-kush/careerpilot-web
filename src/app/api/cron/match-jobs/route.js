@@ -18,7 +18,7 @@ import { buildCandidateSummary, makeProfileHash, scoreBatch } from '@/lib/ai/mat
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
-const BATCH_SIZE = 50;         // jobs per Claude call
+const BATCH_SIZE = 20;         // jobs per Claude call (50 caused Haiku output truncation)
 const MAX_JOBS_PER_USER = 300; // unmatched jobs to process per run (keyword-filtered pool)
 const MAX_USERS_PER_RUN = 10;  // users per cron invocation
 const INACTIVE_DAYS = 2;       // skip users inactive longer than this

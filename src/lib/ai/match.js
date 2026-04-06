@@ -60,9 +60,12 @@ export async function scoreBatch(candidate, jobs) {
 
   const prompt = buildMatchPrompt(candidate, jobs);
 
+  // ~30 output tokens per job (score + reasons + gaps) + 200 buffer
+  const maxTokens = Math.max(1500, jobs.length * 40 + 200);
+
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1500,
+    max_tokens: maxTokens,
     messages: [{ role: 'user', content: prompt }],
   });
 

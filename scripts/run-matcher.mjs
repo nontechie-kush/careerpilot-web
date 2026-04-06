@@ -43,7 +43,7 @@ const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KE
 
 // ── Constants (mirrors match-jobs/route.js) ───────────────────────────────────
 
-const BATCH_SIZE        = 50;   // jobs per Claude call
+const BATCH_SIZE        = 20;   // jobs per Claude call (50 caused Haiku output truncation)
 const MAX_JOBS_PER_USER = 300;  // unmatched jobs to process per user
 const INACTIVE_DAYS     = 2;    // skip users inactive longer than this
 const JOB_SELECT = 'id, title, company, company_domain, location, remote_type, company_stage, department, description, apply_url, apply_type, salary_min, salary_max, salary_currency, posted_at';

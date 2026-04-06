@@ -222,8 +222,8 @@ async function runInitialMatch(userId, maxJobs = INITIAL_BATCH) {
   const jobsToScore = jobs.filter((j) => !matchedIds.has(j.id)).slice(0, maxJobs);
   if (!jobsToScore.length) return 0;
 
-  // Score in batches of 50
-  const BATCH = 50;
+  // Score in batches of 20 (50 caused Haiku output truncation at max_tokens=1500)
+  const BATCH = 20;
   const matchRecords = [];
 
   for (let i = 0; i < jobsToScore.length; i += BATCH) {
