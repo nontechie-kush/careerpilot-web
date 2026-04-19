@@ -93,7 +93,7 @@ export default function ResumeTailorSheet({ match, onClose, entryPoint = 'job_pa
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && onClose(pdfUrl)}
     >
       <motion.div
         initial={{ y: '100%' }}
@@ -118,7 +118,7 @@ export default function ResumeTailorSheet({ match, onClose, entryPoint = 'job_pa
             </h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => onClose(pdfUrl)}
             className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />

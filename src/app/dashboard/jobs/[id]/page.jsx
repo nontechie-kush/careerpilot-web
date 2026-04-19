@@ -169,6 +169,7 @@ export default function JobDetailPage() {
   const [linkReportPending, setLinkReportPending] = useState(false); // awaiting confirm
   const [linkReported, setLinkReported] = useState(false); // user confirmed + reported
   const [showResumeTailor, setShowResumeTailor] = useState(false);
+  const [existingPdfUrl, setExistingPdfUrl] = useState(null);
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 1024);
@@ -188,6 +189,7 @@ export default function JobDetailPage() {
         setMatch(data.match);
         setSaved(data.match.status === 'saved');
         setApplied(data.match.status === 'applied');
+        if (data.tailored_resume?.pdf_url) setExistingPdfUrl(data.tailored_resume.pdf_url);
         // If already confirmed applied from a previous session, skip the picker
         if (data.match.status === 'applied') setPostApplyAction('applied');
 
@@ -460,6 +462,7 @@ export default function JobDetailPage() {
           {/* Resume strength nudge */}
           <ResumeNudge
             matchId={id}
+            pdfUrl={existingPdfUrl}
             onTailor={() => setShowResumeTailor(true)}
           />
 
@@ -689,7 +692,10 @@ export default function JobDetailPage() {
       {showResumeTailor && (
         <ResumeTailorSheet
           match={match}
-          onClose={() => setShowResumeTailor(false)}
+          onClose={(pdfUrl) => {
+            setShowResumeTailor(false);
+            if (pdfUrl) setExistingPdfUrl(pdfUrl);
+          }}
           entryPoint="job_page"
         />
       )}

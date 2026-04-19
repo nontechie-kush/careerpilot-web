@@ -57,7 +57,22 @@ export async function GET(request, props) {
         .eq('user_id', user.id);
     }
 
-    return NextResponse.json({ match: data });
+    // Fetch pdf_url from the latest tailored resume for this match (non-blocking on failure)
+    const { data: tailored } = await supabase
+      .from('tailored_resumes')
+      .select('pdf_url, pipeline_version, updated_at')
+      .eq('user_id', user.id)
+      .eq('match_id', id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return NextResponse.json({
+      match: data,
+      tailored_resume: tailored
+        ? { pdf_url: tailored.pdf_url || null, pipeline_version: tailored.pipeline_version }
+        : null,
+    });
   } catch (err) {
     console.error('[jobs/matches/[id]]', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
