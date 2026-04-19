@@ -31,7 +31,7 @@ import PilotLearned from '@/components/PilotLearned';
 
 // ── Stage: Analysis ─────────────────────────────────────────────
 
-function AnalysisStage({ analysis, onFix, onSkipToReview }) {
+function AnalysisStage({ analysis, onFix, onSkipToReview, autoFixing }) {
   const strength = analysis?.resume_strength || 0;
   const strongCount = (analysis?.strong_bullets || []).length;
   const gapCount = (analysis?.missing_signals || []).length;
@@ -129,16 +129,24 @@ function AnalysisStage({ analysis, onFix, onSkipToReview }) {
         {(gapCount > 0 || weakCount > 0) && (
           <button
             onClick={onFix}
-            className="btn-gradient w-full py-3.5 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2"
+            disabled={autoFixing}
+            className="btn-gradient w-full py-3.5 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <Zap className="w-4 h-4" /> Let&apos;s fix this
           </button>
         )}
         <button
           onClick={onSkipToReview}
-          className="w-full py-3 rounded-xl bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 font-medium text-sm hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+          disabled={autoFixing}
+          className="w-full py-3 rounded-xl bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 font-medium text-sm hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          {strength >= 80 ? 'Looks good — generate PDF' : 'Skip — just generate PDF'}
+          {autoFixing ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Pilot is tightening your resume…
+            </>
+          ) : (
+            strength >= 80 ? 'Looks good — generate PDF' : 'Skip — just generate PDF'
+          )}
         </button>
       </div>
     </div>
@@ -303,6 +311,7 @@ export default function ResumeTailorSheet({ match, onClose, entryPoint = 'job_pa
   const [changes, setChanges] = useState([]);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [autoFixing, setAutoFixing] = useState(false);
   const [error, setError] = useState(null);
   const [memoryResult, setMemoryResult] = useState(null);
   const [conversationId, setConversationId] = useState(null);
@@ -387,17 +396,72 @@ export default function ResumeTailorSheet({ match, onClose, entryPoint = 'job_pa
   }
 
   async function handleSkipToReview() {
-    if (!tailoredVersion) {
-      try {
+    setError(null);
+    setAutoFixing(true);
+    try {
+      // Ensure structured_resume is loaded.
+      let currentVersion = tailoredVersion;
+      if (!currentVersion) {
         const structRes = await fetch('/api/ai/resume-structure', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
         if (structRes.ok) {
           const { structured_resume } = await structRes.json();
+          currentVersion = structured_resume;
           setTailoredVersion(structured_resume);
         }
-      } catch {}
+      }
+
+      // Ensure tailored_resumes record exists (gap analysis usually creates it).
+      let resumeId = tailoredResumeId;
+      if (!resumeId && currentVersion) {
+        const initRes = await fetch('/api/ai/resume-tailor-init', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            match_id: matchId,
+            structured_resume: currentVersion,
+            resume_strength: analysis?.resume_strength,
+          }),
+        });
+        if (initRes.ok) {
+          const { id } = await initRes.json();
+          resumeId = id;
+          setTailoredResumeId(id);
+        }
+      }
+
+      // Pilot picks the highest-impact gaps and produces accepted_changes[].
+      if (resumeId) {
+        const fixRes = await fetch('/api/ai/resume-auto-fix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tailored_resume_id: resumeId }),
+        });
+        if (fixRes.ok) {
+          const { changes: autoChanges } = await fixRes.json();
+          if (Array.isArray(autoChanges) && autoChanges.length > 0) {
+            const applyRes = await fetch('/api/ai/resume-apply-changes', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tailored_resume_id: resumeId,
+                accepted_changes: autoChanges,
+              }),
+            });
+            if (applyRes.ok) {
+              const { tailored_version } = await applyRes.json();
+              setTailoredVersion(tailored_version);
+              setChanges(autoChanges);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[ResumeTailorSheet] auto-fix failed:', err);
+    } finally {
+      setAutoFixing(false);
     }
     setStage('review');
   }
@@ -543,6 +607,7 @@ export default function ResumeTailorSheet({ match, onClose, entryPoint = 'job_pa
               analysis={analysis}
               onFix={handleStartFix}
               onSkipToReview={handleSkipToReview}
+              autoFixing={autoFixing}
             />
           )}
 
