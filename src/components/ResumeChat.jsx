@@ -137,7 +137,11 @@ export default function ResumeChat({ tailoredResumeId, onChangesProposed, onFina
         }),
       });
 
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('[ResumeChat] resume-content failed:', res.status, errData);
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
       const data = await res.json();
 
       setConversationId(data.conversation_id);
@@ -157,10 +161,11 @@ export default function ResumeChat({ tailoredResumeId, onChangesProposed, onFina
       if (data.stage === 'finalized') {
         onFinalized?.(data.conversation_id);
       }
-    } catch {
+    } catch (err) {
+      const reason = err?.message ? ` (${err.message})` : '';
       setMessages((prev) => [
         ...prev,
-        { role: 'pilot', text: 'Hit a wall trying to process that. Try again?' },
+        { role: 'pilot', text: `Hit a wall trying to process that${reason}. Try again?` },
       ]);
     } finally {
       setLoading(false);

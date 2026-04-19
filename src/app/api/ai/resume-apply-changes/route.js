@@ -46,6 +46,10 @@ export async function POST(request) {
 
     for (const change of accepted_changes) {
       const { action, section, entry_id, bullet_id, before, after, entry_hint } = change;
+      // Track the bullet id this iteration touched, so we can stamp it onto the
+      // change-log entry. For 'add' the inbound bullet_id is null — without
+      // this the review screen can't highlight the newly inserted line.
+      let touchedBulletId = bullet_id || null;
 
       if (section === 'experience' || section === 'projects') {
         const entries = version[section] || [];
@@ -81,16 +85,27 @@ export async function POST(request) {
             applied++;
           }
         } else if (action === 'add') {
-          // Generate a new bullet ID
-          const maxId = bullets.reduce((max, b) => {
-            const num = parseInt(b.id.replace(/\D/g, ''), 10);
-            return num > max ? num : max;
-          }, 0);
+          // Generate a new bullet ID that's unique across the WHOLE resume,
+          // not just this entry. base_version has historical collisions
+          // (e.g. exp_002 ends at b_018 and exp_003 starts at b_019),
+          // so per-entry maxId would mint a duplicate that breaks React keys.
+          const allSections = ['experience', 'projects'];
+          let globalMax = 0;
+          for (const sec of allSections) {
+            for (const e of version[sec] || []) {
+              for (const b of e.bullets || []) {
+                const num = parseInt(String(b.id || '').replace(/\D/g, ''), 10);
+                if (Number.isFinite(num) && num > globalMax) globalMax = num;
+              }
+            }
+          }
+          const newId = `b_${String(globalMax + 1).padStart(3, '0')}`;
           bullets.push({
-            id: `b_${String(maxId + 1).padStart(3, '0')}`,
+            id: newId,
             text: after,
             tags: [],
           });
+          touchedBulletId = newId;
           applied++;
         }
 
@@ -102,9 +117,11 @@ export async function POST(request) {
         applied++;
       }
 
-      // Log the change
+      // Log the change. Persist the touched bullet id so the review screen
+      // can highlight added bullets (which arrived with bullet_id=null).
       changeLog.push({
         ...change,
+        bullet_id: touchedBulletId,
         applied_at: new Date().toISOString(),
       });
     }

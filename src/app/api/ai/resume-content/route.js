@@ -152,18 +152,43 @@ export async function POST(request) {
 
     const aiMessage = await anthropic.messages.create({
       model: 'claude-opus-4-6',
-      max_tokens: 1200,
+      max_tokens: 2400,
       temperature: 0.7,
       system,
       messages: [{ role: 'user', content: userPrompt }],
     });
 
-    const raw = aiMessage.content[0].text
-      .trim()
-      .replace(/^```(?:json)?\n?/, '')
-      .replace(/\n?```$/, '');
+    if (aiMessage.stop_reason === 'max_tokens') {
+      console.warn('[resume-content] model hit max_tokens — output likely truncated');
+    }
 
-    const result = JSON.parse(raw);
+    const rawText = aiMessage.content[0].text || '';
+    // Opus sometimes wraps the JSON in prose ("Sure, here's..." or trailing
+    // commentary) or returns the fence inline. Try strict parse first, then
+    // fall back to extracting the largest {...} block.
+    let result;
+    try {
+      const stripped = rawText
+        .trim()
+        .replace(/^```(?:json)?\n?/, '')
+        .replace(/\n?```$/, '');
+      result = JSON.parse(stripped);
+    } catch {
+      const fenced = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      const candidate = (fenced?.[1] || rawText).trim();
+      const first = candidate.indexOf('{');
+      const last = candidate.lastIndexOf('}');
+      if (first === -1 || last === -1 || last < first) {
+        console.error('[resume-content] no JSON object in model output:', rawText.slice(0, 500));
+        throw new Error('Model did not return JSON');
+      }
+      try {
+        result = JSON.parse(candidate.slice(first, last + 1));
+      } catch (e) {
+        console.error('[resume-content] JSON parse failed. raw=', rawText.slice(0, 500));
+        throw new Error(`Model returned malformed JSON: ${e.message}`);
+      }
+    }
 
     // Add Pilot's response to conversation
     messages.push({
