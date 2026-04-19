@@ -38,7 +38,10 @@ export async function POST(request) {
     }
 
     const version = { ...tailored.tailored_version };
-    const changeLog = [...(tailored.changes || [])];
+    // changes column is dual-typed: either an array (apply-changes log) or
+    // an object like { _gap_analysis: ... } (cached by resume-gap-analysis).
+    // Only treat arrays as a real change log; object form gets replaced.
+    const changeLog = Array.isArray(tailored.changes) ? [...tailored.changes] : [];
     let applied = 0;
 
     for (const change of accepted_changes) {
