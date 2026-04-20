@@ -490,8 +490,16 @@ function StepProcessing({ onNext, dir }) {
 
   useEffect(() => {
     const session = loadSession();
-    const jdId = session.jdId;
+    const { jdId, tailoredResumeId } = session;
     if (!jdId) { setError('No job found — go back and enter a job URL'); return; }
+
+    // Already tailored for this JD — skip API call, go straight to result
+    if (tailoredResumeId) {
+      setCur(STEPS.length - 1);
+      setDone(true);
+      setTimeout(onNext, 400);
+      return;
+    }
 
     // Animate steps while API runs
     let stepIdx = 0;
@@ -1085,7 +1093,12 @@ export default function RolePitchStart() {
   }, [step]);
 
   const next = useCallback(() => go(Math.min(step + 1, TOTAL - 1)), [step, go]);
-  const back = useCallback(() => go(Math.max(step - 1, 0)), [step, go]);
+  const back = useCallback(() => {
+    const prev = Math.max(step - 1, 0);
+    // Going back to job input — clear tailored result so re-entering a JD re-triggers tailoring
+    if (prev <= 2) saveSession({ jdId: null, jdTitle: null, jdCompany: null, tailoredResumeId: null });
+    go(prev);
+  }, [step, go]);
   const goHome = useCallback(() => router.push('/rolepitch'), [router]);
   const tailorAnother = useCallback(() => {
     // Clear JD state but keep vault/profile
