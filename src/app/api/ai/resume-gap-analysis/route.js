@@ -27,7 +27,7 @@ export async function POST(request) {
     } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { match_id } = await request.json();
+    const { match_id, tailored_resume_id, force_fresh } = await request.json();
     if (!match_id) return NextResponse.json({ error: 'match_id required' }, { status: 400 });
 
     // Fetch match + job, profile, and check for existing tailored resume in parallel
@@ -69,7 +69,8 @@ export async function POST(request) {
     const job = match.jobs;
 
     // ── Cache hit: return stored analysis ─────────────────────────
-    if (existingTailor) {
+    // Skip cache if caller passes force_fresh=true (e.g. post-v2 composition score check)
+    if (existingTailor && !force_fresh) {
       // If finalized, just return strength + tailored flag
       if (existingTailor.status === 'finalized') {
         return NextResponse.json({
@@ -92,8 +93,18 @@ export async function POST(request) {
 
     // ── No cache — run analysis ───────────────────────────────────
 
-    // Ensure structured_resume exists — generate lazily if needed
+    // If a specific tailored_resume_id is passed (e.g. v2 composed version),
+    // score that version instead of the base structured_resume.
     let structuredResume = profileRow.structured_resume;
+    if (tailored_resume_id) {
+      const { data: tailoredRow } = await supabase
+        .from('tailored_resumes')
+        .select('tailored_version')
+        .eq('id', tailored_resume_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (tailoredRow?.tailored_version) structuredResume = tailoredRow.tailored_version;
+    }
     if (!structuredResume) {
       const { buildResumeStructurePrompt } = await import('@/lib/ai/prompts/resume-structure');
       if (!profileRow.raw_text) {
