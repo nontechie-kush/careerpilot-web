@@ -563,27 +563,27 @@ function StepProcessing({ onNext, dir }) {
 }
 
 // ── Score ring ────────────────────────────────────────────────────────────────
-function ScoreRing({ from, to, size = 120 }) {
-  const [val, setVal] = useState(from);
+function ScoreRing({ target, size = 120, muted = false }) {
+  const [val, setVal] = useState(muted ? target : Math.max(target - 25, 0));
   useEffect(() => {
-    const dur = 1400, start = performance.now();
+    const dur = 1000, start = performance.now();
     const tick = (now) => {
       const p = Math.min((now - start) / dur, 1);
-      setVal(Math.round(from + (to - from) * (1 - Math.pow(1 - p, 4))));
+      const startVal = muted ? target : Math.max(target - 25, 0);
+      setVal(Math.round(startVal + (target - startVal) * (1 - Math.pow(1 - p, 3))));
       if (p < 1) requestAnimationFrame(tick);
     };
-    const t = setTimeout(() => requestAnimationFrame(tick), 300);
-    return () => clearTimeout(t);
-  }, [from, to]);
+    requestAnimationFrame(tick);
+  }, [target, muted]);
   const r = size * 0.38, circ = 2 * Math.PI * r, offset = circ * (1 - val / 100);
-  const color = val >= 80 ? 'var(--green)' : val >= 60 ? 'var(--accent)' : 'var(--text-muted)';
+  const color = muted ? 'var(--text-muted)' : val >= 80 ? 'var(--green)' : 'var(--accent)';
   return (
     <div style={{ position: 'relative', width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <svg width={size} height={size} style={{ position: 'absolute', transform: 'rotate(-90deg)' }}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth="5" />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="5"
           strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transition: 'stroke 0.3s', filter: `drop-shadow(0 0 5px ${color})` }} />
+          style={{ transition: 'stroke-dashoffset 0.4s ease, stroke 0.3s', filter: muted ? 'none' : `drop-shadow(0 0 5px ${color})` }} />
       </svg>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: size * 0.22, fontWeight: 600, color, lineHeight: 1 }}>{val}<span style={{ fontSize: size * 0.13 }}>%</span></div>
@@ -646,19 +646,22 @@ function StepResult({ onNext, onBack, dir }) {
       <div className="rp-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px 32px 32px', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 24, alignItems: 'start' }}>
         {/* Score panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 200, flexShrink: 0 }}>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <ScoreRing from={result.before_score} to={result.after_score} size={110} />
+          <div style={{ background: tab === 'after' ? 'var(--green-dim)' : 'var(--surface)', border: `1px solid ${tab === 'after' ? 'oklch(0.72 0.17 155 / 0.25)' : 'var(--border)'}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, transition: 'all 0.3s' }}>
+            <ScoreRing key={tab} target={tab === 'after' ? result.after_score : result.before_score} size={110} muted={tab === 'before'} />
             <div style={{ textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center', color: 'var(--green)', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 8V2M2 5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                +{result.after_score - result.before_score}% improvement
-              </div>
+              {tab === 'after'
+                ? <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center', color: 'var(--green)', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 8V2M2 5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    +{result.after_score - result.before_score}% vs original
+                  </div>
+                : <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>original resume</div>
+              }
               <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 4 }}>{result.before_score}% → {result.after_score}%</div>
             </div>
           </div>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
-              ['Achievements used', `${result.stats?.achievements_used} of ${result.stats?.total_achievements}`],
+              ['Highlights used', `${result.stats?.achievements_used} of ${result.stats?.total_achievements}`],
               ['Bullets rewritten', result.stats?.bullets_rewritten],
               ['Layout', 'Preserved ✓'],
             ].map(([k, v]) => (
@@ -673,24 +676,31 @@ function StepResult({ onNext, onBack, dir }) {
         {/* Resume preview */}
         {displayRole && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 7, padding: 3, border: '1px solid var(--border-subtle)', alignSelf: 'flex-start' }}>
-              {['before', 'after'].map(t => (
-                <button key={t} onClick={() => setTab(t)} style={{ padding: '5px 16px', borderRadius: 5, border: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, textTransform: 'capitalize', background: tab === t ? (t === 'after' ? 'var(--green)' : 'var(--surface2)') : 'transparent', color: tab === t ? (t === 'after' ? 'white' : 'var(--text)') : 'var(--text-muted)', transition: 'all 0.2s' }}>{t}</button>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 7, padding: 3, border: '1px solid var(--border-subtle)' }}>
+                {['before', 'after'].map(t => (
+                  <button key={t} onClick={() => setTab(t)} style={{ padding: '5px 16px', borderRadius: 5, border: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, textTransform: 'capitalize', background: tab === t ? (t === 'after' ? 'var(--green)' : 'var(--surface2)') : 'transparent', color: tab === t ? (t === 'after' ? 'white' : 'var(--text)') : 'var(--text-muted)', transition: 'all 0.2s' }}>{t === 'after' ? 'After — tailored' : 'Before — original'}</button>
+                ))}
+              </div>
+              {tab === 'before' && <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>generic, not positioned for this role</span>}
+              {tab === 'after' && <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 500 }}>{result.stats?.bullets_rewritten} bullets rewritten for this role</span>}
             </div>
-            <div style={{ background: 'var(--card-bg)', borderRadius: 10, padding: 28, boxShadow: '0 4px 32px oklch(0 0 0 / 0.12)', border: tab === 'after' ? '1px solid oklch(0.72 0.17 155 / 0.2)' : '1px solid transparent' }}>
+            <div style={{ background: 'var(--card-bg)', borderRadius: 10, padding: 28, boxShadow: '0 4px 32px oklch(0 0 0 / 0.12)', border: tab === 'after' ? '1px solid oklch(0.72 0.17 155 / 0.25)' : '1px solid var(--border)', opacity: tab === 'before' ? 0.75 : 1, transition: 'all 0.3s' }}>
               <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '2px solid var(--border)' }}>
-                <div style={{ width: '55%', height: 10, background: 'var(--text)', borderRadius: 3, marginBottom: 6 }} />
+                <div style={{ width: '55%', height: 10, background: 'var(--text)', borderRadius: 3, marginBottom: 6, opacity: tab === 'before' ? 0.4 : 1 }} />
                 <div style={{ width: '35%', height: 7, background: 'var(--border)', borderRadius: 3 }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {(tab === 'after' ? displayRole.after : displayRole.before).map((text, i) => (
-                  <div key={i} style={{ background: tab === 'after' ? 'oklch(0.72 0.17 155 / 0.06)' : 'transparent', border: tab === 'after' ? '1px solid oklch(0.72 0.17 155 / 0.2)' : '1px solid transparent', borderRadius: 6, padding: tab === 'after' ? '10px 12px' : '0', transition: 'all 0.3s ease' }}>
-                    <p style={{ fontSize: 12, lineHeight: 1.7, color: 'var(--resume-text)', fontFamily: 'Georgia,serif' }}>{text}</p>
-                    {tab === 'after' && text !== displayRole.before[i] && <div style={{ fontSize: 10, color: 'var(--green)', marginTop: 5, fontWeight: 600, letterSpacing: '0.03em' }}>↑ IMPROVED BULLET</div>}
-                  </div>
-                ))}
-                {[90, 75, 82, 65].map((w, i) => <div key={i} style={{ height: 6, width: `${w}%`, background: 'var(--border)', borderRadius: 3 }} />)}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {(tab === 'after' ? displayRole.after : displayRole.before).map((text, i) => {
+                  const isImproved = tab === 'after' && text !== displayRole.before[i];
+                  return (
+                    <div key={i} style={{ background: isImproved ? 'oklch(0.72 0.17 155 / 0.07)' : 'transparent', border: isImproved ? '1px solid oklch(0.72 0.17 155 / 0.25)' : '1px solid transparent', borderRadius: 6, padding: isImproved ? '10px 12px' : '2px 0', transition: 'all 0.3s ease' }}>
+                      <p style={{ fontSize: 12, lineHeight: 1.75, color: tab === 'before' ? 'var(--text-muted)' : 'var(--resume-text)', fontFamily: 'Georgia,serif', fontStyle: tab === 'before' ? 'normal' : 'normal' }}>{text}</p>
+                      {isImproved && <div style={{ fontSize: 10, color: 'var(--green)', marginTop: 5, fontWeight: 700, letterSpacing: '0.05em' }}>↑ REWRITTEN FOR THIS ROLE</div>}
+                    </div>
+                  );
+                })}
+                {[90, 75, 82, 65].map((w, i) => <div key={i} style={{ height: 5, width: `${w}%`, background: 'var(--border)', borderRadius: 3, opacity: tab === 'before' ? 0.5 : 0.3 }} />)}
               </div>
             </div>
           </div>
