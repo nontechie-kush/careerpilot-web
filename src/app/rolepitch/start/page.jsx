@@ -406,8 +406,63 @@ function StepJobInput({ onNext, onBack, dir, returning = false }) {
   const [mode, setMode] = useState('url');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [files, setFiles] = useState([]);        // File[] for screenshots/PDF/DOCX
+  const [fileStatus, setFileStatus] = useState(''); // 'reading' | 'done' | ''
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const ACCEPTED = 'image/jpeg,image/png,image/webp,image/gif,application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+  const addFiles = useCallback((incoming) => {
+    const valid = Array.from(incoming).filter(f => {
+      const mt = f.type || '';
+      return mt.startsWith('image/') || mt === 'application/pdf' || f.name?.endsWith('.pdf') || f.name?.endsWith('.docx') || mt.includes('wordprocessingml');
+    });
+    if (!valid.length) { setError('Only images (PNG/JPG/WEBP), PDF, or DOCX allowed'); return; }
+    setFiles(prev => [...prev, ...valid].slice(0, 6)); // max 6 files
+    setError('');
+  }, []);
+
+  const removeFile = useCallback((i) => setFiles(prev => prev.filter((_, idx) => idx !== i)), []);
+
+  const proceedFiles = useCallback(async () => {
+    if (!files.length) { setError('Add at least one screenshot or file'); return; }
+    setError('');
+    setLoading(true);
+    setFileStatus('reading');
+    try {
+      const fd = new FormData();
+      files.forEach(f => fd.append('files', f));
+      const res = await fetch('/api/rolepitch/parse-jd-file', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Could not read files');
+      setFileStatus('done');
+      // Feed extracted text into init-match as paste
+      const matchRes = await fetch('/api/rolepitch/init-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: data.title || 'Role', company: data.company || '', description: data.description }),
+      });
+      const matchData = await matchRes.json();
+      if (!matchRes.ok || matchData.error) throw new Error(matchData.error || 'Failed to save job');
+      saveSession({
+        jdId: matchData.jd_id || null,
+        jdTitle: matchData.title,
+        jdCompany: matchData.company,
+        jdDescription: matchData.description,
+        tailoredResumeId: null,
+        tailoredResult: null,
+      });
+      onNext();
+    } catch (err) {
+      setError(err.message);
+      setFileStatus('');
+      setLoading(false);
+    }
+  }, [files, onNext]);
 
   const proceed = useCallback(async () => {
+    if (mode === 'file') { proceedFiles(); return; }
     setError('');
     if (!url.trim() && pasted.trim().length < 30) {
       setError('Please enter a job URL or paste the description');
@@ -434,7 +489,6 @@ function StepJobInput({ onNext, onBack, dir, returning = false }) {
       }
       if (!res.ok || data.error) throw new Error(data.error || 'Failed to save job');
 
-      // Save JD to session (jdId may be null for guest users — full JD stored inline)
       saveSession({
         jdId: data.jd_id || null,
         jdTitle: data.title,
@@ -448,27 +502,105 @@ function StepJobInput({ onNext, onBack, dir, returning = false }) {
       setError(err.message);
       setLoading(false);
     }
-  }, [url, pasted, mode, onNext]);
+  }, [url, pasted, mode, onNext, proceedFiles]);
 
   return (
     <div className={dir === 1 ? 'rp-anim-in' : 'rp-anim-in-left'} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', gap: 28 }}>
       <div style={{ textAlign: 'center', maxWidth: 480 }}>
         {!returning && <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Step 3 of 7</div>}
         <h2 style={{ fontSize: 'clamp(24px,3vw,34px)', fontWeight: 600, letterSpacing: '-0.03em', marginBottom: 10 }}>Which role are you applying for?</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: 15, lineHeight: 1.6 }}>Paste the job link and we&apos;ll handle the rest</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 15, lineHeight: 1.6 }}>Share the job any way you have it</p>
       </div>
 
       <div style={{ width: '100%', maxWidth: 520, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Mode tabs */}
         <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 8, padding: 3, border: '1px solid var(--border-subtle)', alignSelf: 'flex-start' }}>
-          {[['url', 'Job URL'], ['paste', 'Paste JD']].map(([v, l]) => (
-            <button key={v} onClick={() => { setMode(v); setError(''); }} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--sans)', background: mode === v ? 'var(--surface2)' : 'transparent', color: mode === v ? 'var(--text)' : 'var(--text-muted)', transition: 'all 0.2s' }}>{l}</button>
+          {[['url', 'Job URL'], ['paste', 'Paste JD'], ['file', '📸 Screenshots / File']].map(([v, l]) => (
+            <button key={v} onClick={() => { setMode(v); setError(''); }} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--sans)', background: mode === v ? 'var(--surface2)' : 'transparent', color: mode === v ? 'var(--text)' : 'var(--text-muted)', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>{l}</button>
           ))}
         </div>
 
-        {mode === 'url' ? (
+        {mode === 'url' && (
           <input className="rp-input" value={url} onChange={e => { setUrl(e.target.value); setError(''); }} placeholder="https://stripe.com/jobs/product-manager-payments" onKeyDown={e => e.key === 'Enter' && proceed()} />
-        ) : (
+        )}
+
+        {mode === 'paste' && (
           <textarea className="rp-input" value={pasted} onChange={e => { setPasted(e.target.value); setError(''); }} placeholder={SAMPLE_JOB} rows={8} style={{ resize: 'none', lineHeight: 1.6, fontSize: 13 }} />
+        )}
+
+        {mode === 'file' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* Drop zone */}
+            <div
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: `2px dashed ${dragOver ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 12,
+                padding: '28px 20px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                background: dragOver ? 'var(--accent-dim)' : 'var(--surface)',
+                transition: 'all 0.2s',
+              }}
+            >
+              <div style={{ fontSize: 28, marginBottom: 8 }}>📸</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+                Drop screenshots here or tap to upload
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
+                PNG, JPG, WEBP screenshots · PDF or DOCX · up to 6 files
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED}
+                multiple
+                style={{ display: 'none' }}
+                onChange={e => { addFiles(e.target.files); e.target.value = ''; }}
+              />
+            </div>
+
+            {/* File previews */}
+            {files.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {files.map((f, i) => {
+                  const isImg = f.type?.startsWith('image/');
+                  const previewUrl = isImg ? URL.createObjectURL(f) : null;
+                  return (
+                    <div key={i} style={{ position: 'relative', width: 72, height: 72, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface2)', flexShrink: 0 }}>
+                      {isImg
+                        ? <img src={previewUrl} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: 4 }}>
+                            <div style={{ fontSize: 20 }}>{f.name?.endsWith('.pdf') ? '📄' : '📝'}</div>
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'center', wordBreak: 'break-all', lineHeight: 1.2 }}>{f.name?.slice(0, 16)}</div>
+                          </div>
+                      }
+                      <button
+                        onClick={e => { e.stopPropagation(); removeFile(i); }}
+                        style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 10, lineHeight: 1 }}
+                      >×</button>
+                    </div>
+                  );
+                })}
+                {files.length < 6 && (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ width: 72, height: 72, borderRadius: 8, border: '1.5px dashed var(--border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: 'var(--text-faint)' }}
+                  >+</button>
+                )}
+              </div>
+            )}
+
+            {fileStatus === 'reading' && (
+              <div style={{ fontSize: 13, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid var(--accent)', borderTopColor: 'transparent', animation: 'rp-spin 0.7s linear infinite' }} />
+                Reading {files.length} file{files.length > 1 ? 's' : ''} with AI…
+              </div>
+            )}
+          </div>
         )}
 
         {error && (
@@ -482,7 +614,7 @@ function StepJobInput({ onNext, onBack, dir, returning = false }) {
           <button className="rp-btn-ghost" onClick={onBack} disabled={loading} style={{ flex: '0 0 auto' }}>← Back</button>
           <button className="rp-btn-primary" onClick={proceed} disabled={loading} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             {loading
-              ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid white', borderTopColor: 'transparent', animation: 'rp-spin 0.7s linear infinite' }} /> Analyzing…</>
+              ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid white', borderTopColor: 'transparent', animation: 'rp-spin 0.7s linear infinite' }} /> {fileStatus === 'reading' ? 'Reading files…' : 'Analyzing…'}</>
               : 'Analyze fit →'
             }
           </button>
