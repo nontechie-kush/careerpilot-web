@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { track, identify } from '@/components/PostHogProvider';
 
 const CSS_VARS = `
   :root {
@@ -154,6 +155,7 @@ function StepUpload({ onNext, dir }) {
       saveSession({ parsedName: parsed.name, parsedResume: parsed });
       setParseResult(parsed);
       setPhase('done');
+      track('rp_resume_uploaded', { method: 'pdf', years_exp: parsed.years_exp, seniority: parsed.seniority });
     } catch (err) {
       clearInterval(stepTimer);
       setErrorMsg(err.message || 'Something went wrong — try again');
@@ -453,6 +455,7 @@ function StepJobInput({ onNext, onBack, dir, returning = false }) {
         tailoredResumeId: null,
         tailoredResult: null,
       });
+      track('rp_jd_submitted', { method: 'file', source: 'file_upload', company: matchData.company, title: matchData.title });
       onNext();
     } catch (err) {
       setError(err.message);
@@ -497,6 +500,7 @@ function StepJobInput({ onNext, onBack, dir, returning = false }) {
         tailoredResumeId: null,
         tailoredResult: null,
       });
+      track('rp_jd_submitted', { method: mode, source: data.source, company: data.company, title: data.title });
       onNext();
     } catch (err) {
       setError(err.message);
@@ -666,6 +670,13 @@ function StepProcessing({ onNext, dir }) {
         clearInterval(stepTimer);
         if (data.error) throw new Error(data.error);
         saveSession({ tailoredResult: data });
+        track('rp_tailor_completed', {
+          before_score: data.before_score,
+          after_score: data.after_score,
+          improvement: (data.after_score || 0) - (data.before_score || 0),
+          jd_title: jdTitle,
+          jd_company: jdCompany,
+        });
         setCur(STEPS.length - 1);
         setDone(true);
         setTimeout(onNext, 800);
@@ -1120,6 +1131,7 @@ function StepFinalOutput({ onBack, onHome, onTailorAnother, dir }) {
   const jdCompany = result?.jd?.company || '';
 
   const handleGoogleSignup = () => {
+    track('rp_oauth_triggered', { source: 'signup_wall' });
     // step=6 means "returning from auth at final step — save + redirect to dashboard"
     const qs = new URLSearchParams({ step: '6', source: 'rolepitch' });
     router.push(`/rolepitch/auth?${qs.toString()}`);
@@ -1381,6 +1393,7 @@ export default function RolePitchStart() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
+        identify(user.id, { email: user.email });
         // Signed-in user — fetch their profile from DB if not already in session
         let parsedResume = session.parsedResume;
         if (!parsedResume) {
@@ -1414,10 +1427,16 @@ export default function RolePitchStart() {
 
   const TOTAL = isReturning ? TOTAL_RETURNING : TOTAL_NEW;
 
+  const STEP_NAMES_NEW = ['upload', 'vault', 'jd_input', 'processing', 'result', 'gap_questions', 'final_output'];
+  const STEP_NAMES_RETURNING = ['jd_input', 'processing', 'gap_questions', 'done'];
+
   const go = useCallback((n) => {
     setDir(n > step ? 1 : -1);
     setStep(n);
     if (!isReturning) saveSession({ step: n });
+    const names = isReturning ? STEP_NAMES_RETURNING : STEP_NAMES_NEW;
+    const stepName = names[n] || `step_${n}`;
+    track('rp_step_viewed', { step: n, step_name: stepName, flow: isReturning ? 'returning' : 'new' });
   }, [step, isReturning]);
 
   const next = useCallback(() => go(Math.min(step + 1, TOTAL - 1)), [step, go, TOTAL]);

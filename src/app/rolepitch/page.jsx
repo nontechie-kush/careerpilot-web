@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { track } from '@/components/PostHogProvider';
 
 const CSS_VARS = `
   :root {
@@ -569,9 +570,13 @@ export default function RolePitchLanding() {
   }, [dark]);
 
   const isRolePitchDomain = typeof window !== 'undefined' && (window.location.hostname === 'rolepitch.com' || window.location.hostname === 'www.rolepitch.com');
-  const handleGetStarted = () => router.push(isRolePitchDomain ? '/start' : '/rolepitch/start');
+  const handleGetStarted = () => {
+    track('rp_get_started_clicked', { source: 'landing', user_signed_in: !!user });
+    router.push(isRolePitchDomain ? '/start' : '/rolepitch/start');
+  };
   const handleDashboard = () => router.push('/rolepitch/dashboard');
   const handleSignIn = () => {
+    track('rp_sign_in_clicked', { source: 'landing' });
     // Reuse the auth page, redirect to dashboard after sign-in
     const supabase = createClient();
     supabase.auth.signInWithOAuth({

@@ -1,6 +1,9 @@
 import { Inter } from 'next/font/google';
+import { Suspense } from 'react';
 import './globals.css';
 import Providers from '@/components/Providers';
+import { Analytics } from '@vercel/analytics/react';
+import PostHogProvider from '@/components/PostHogProvider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -29,6 +32,10 @@ export default function RootLayout({ children }) {
         <Providers>
           {children}
         </Providers>
+        <Analytics />
+        <Suspense fallback={null}>
+          <PostHogProvider />
+        </Suspense>
       </body>
     </html>
   );

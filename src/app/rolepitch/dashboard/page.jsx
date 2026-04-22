@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { track } from '@/components/PostHogProvider';
 
 const CSS_VARS = `
   :root {
@@ -121,6 +122,8 @@ export default function RolePitchDashboard() {
 
   const handleDownload = async (resumeId) => {
     setDownloading(resumeId);
+    const resume = resumes.find(r => r.id === resumeId);
+    track('rp_pdf_downloaded', { resume_id: resumeId, jd_title: resume?.jd?.title, jd_company: resume?.jd?.company });
     window.open(`/api/rolepitch/download-pdf?tailored_resume_id=${resumeId}`, '_blank');
     setDownloading(null);
   };
