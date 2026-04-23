@@ -430,7 +430,7 @@ function Differentiator() {
     { label: 'Selects best-fit achievements', us: true, them: false },
     { label: 'Shows match score delta', us: true, them: false },
     { label: 'Asks gap questions', us: true, them: false },
-    { label: 'Lifetime pricing option', us: true, them: false },
+    { label: 'No subscription — pay per pack', us: true, them: false },
     { label: 'Keep your original resume design', us: true, them: false },
     { label: 'Generates new resume from scratch', us: false, them: true },
   ];
@@ -472,9 +472,9 @@ function Differentiator() {
 
 function Pricing({ onGetStarted }) {
   const plans = [
-    { name: 'Free', price: null, sub: 'Get started', features: ['10 role pitches', 'Full memory vault', 'PDF download'], cta: 'Start free', highlight: false },
-    { name: 'Pro', price: '₹999', period: '/month', sub: 'Most popular', features: ['Unlimited pitches', 'Full career vault', 'Score delta + gap questions', 'Priority generation'], cta: 'Start Pro', highlight: true },
-    { name: 'Lifetime', price: '₹5,999', period: 'once', sub: 'Best value', features: ['Everything in Pro', 'Forever access', 'All future features', 'No recurring charges'], cta: 'Get Lifetime', highlight: false },
+    { name: 'Free', price: null, sub: '10 pitches included', features: ['10 role pitches free', 'Full memory vault', 'PDF download', 'Gap chat questions'], cta: 'Start free', highlight: false, badge: null },
+    { name: '25 Pitches', price: '₹299', total: '₹352', sub: '+ ₹53 GST · one-time', features: ['25 pitch credits', 'Never expires', 'Full memory vault', 'PDF download'], cta: 'Buy 25 pitches', highlight: true, badge: 'Most Popular' },
+    { name: '50 Pitches', price: '₹499', total: '₹589', sub: '+ ₹90 GST · one-time', features: ['50 pitch credits', 'Never expires', '₹9.98 per pitch', 'PDF download'], cta: 'Buy 50 pitches', highlight: false, badge: null },
   ];
 
   return (
@@ -483,6 +483,7 @@ function Pricing({ onGetStarted }) {
         <div style={{ textAlign: 'center', marginBottom: 56 }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)', letterSpacing: '0.1em', fontWeight: 600, textTransform: 'uppercase', display: 'block', marginBottom: 14 }}>Pricing</span>
           <h2 style={{ fontSize: 'clamp(26px,3vw,38px)', fontWeight: 600, letterSpacing: '-0.03em' }}>Simple. No surprises.</h2>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 12 }}>Pay only when you need more pitches. No subscription.</p>
         </div>
         <div className="rp-pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, alignItems: 'start' }}>
           {plans.map((p, i) => (
@@ -493,13 +494,13 @@ function Pricing({ onGetStarted }) {
               boxShadow: p.highlight ? '0 4px 40px oklch(0.62 0.19 248 / 0.15)' : 'none',
               position: 'relative', marginTop: p.highlight ? -8 : 0,
             }}>
-              {p.highlight && (
-                <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: 'white', fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Most Popular</div>
+              {p.badge && (
+                <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: 'white', fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{p.badge}</div>
               )}
               <div style={{ marginBottom: 6, fontSize: 13, fontWeight: 600, color: p.highlight ? 'var(--accent)' : 'var(--text-muted)' }}>{p.name}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
                 {p.price
-                  ? <><span style={{ fontFamily: 'var(--mono)', fontSize: 32, fontWeight: 600, letterSpacing: '-0.03em' }}>{p.price}</span><span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.period}</span></>
+                  ? <><span style={{ fontFamily: 'var(--mono)', fontSize: 32, fontWeight: 600, letterSpacing: '-0.03em' }}>{p.price}</span><span style={{ fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>base</span></>
                   : <span style={{ fontFamily: 'var(--mono)', fontSize: 32, fontWeight: 600 }}>Free</span>
                 }
               </div>
@@ -522,6 +523,7 @@ function Pricing({ onGetStarted }) {
             </div>
           ))}
         </div>
+        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-faint)', marginTop: 24 }}>All prices in INR · GST 18% added at checkout · Credits never expire</p>
       </div>
     </section>
   );
