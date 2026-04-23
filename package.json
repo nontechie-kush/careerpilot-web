@@ -23,6 +23,7 @@
     "next": "^16.1.6",
     "pdf-parse": "^1.1.1",
     "posthog-js": "^1.369.5",
+    "razorpay": "^2.9.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "web-push": "^3.6.7",

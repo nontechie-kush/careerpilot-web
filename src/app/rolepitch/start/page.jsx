@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { track, identify } from '@/components/PostHogProvider';
+import UpgradeModal from '@/components/UpgradeModal';
 
 const CSS_VARS = `
   :root {
@@ -1309,6 +1310,7 @@ function StepReturningDone({ onTailorAnother, dir }) {
   const [savedId, setSavedId] = useState(null);
   const [score, setScore] = useState(null);
   const [jdLabel, setJdLabel] = useState('');
+  const [noCredits, setNoCredits] = useState(false);
 
   useEffect(() => {
     const session = loadSession();
@@ -1326,8 +1328,11 @@ function StepReturningDone({ onTailorAnother, dir }) {
         tailored: tr,
       }),
     })
-      .then(r => r.json())
-      .then(data => { if (data.tailored_resume_id) setSavedId(data.tailored_resume_id); })
+      .then(async r => {
+        const data = await r.json();
+        if (r.status === 402 && data.error === 'no_credits') { setNoCredits(true); return; }
+        if (data.tailored_resume_id) setSavedId(data.tailored_resume_id);
+      })
       .finally(() => setSaving(false));
   }, []);
 
@@ -1365,6 +1370,14 @@ function StepReturningDone({ onTailorAnother, dir }) {
         </button>
         <button className="rp-btn-ghost" style={{ width: '100%' }} onClick={onTailorAnother}>Tailor another role →</button>
       </div>
+
+      {noCredits && (
+        <UpgradeModal
+          trigger="no_credits"
+          onClose={() => router.push('/rolepitch/dashboard')}
+          onSuccess={() => router.push('/rolepitch/dashboard')}
+        />
+      )}
     </div>
   );
 }

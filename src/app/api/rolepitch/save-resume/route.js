@@ -9,6 +9,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClientFromRequest } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,22 @@ export async function POST(request) {
     const { parsed, jd, tailored, jd_id: existingJdId } = await request.json();
     console.log('[save-resume] user:', user.id, '| jd_id:', existingJdId, '| has_tailored:', !!tailored, '| has_jd_desc:', !!jd?.description, '| has_parsed:', !!parsed);
     if (!parsed) return NextResponse.json({ error: 'parsed required' }, { status: 400 });
+
+    // ── Credit gate: deduct 1 pitch credit atomically (only when saving a tailored resume) ──
+    if (tailored) {
+      const service = createServiceClient();
+      const { data: remaining, error: creditErr } = await service.rpc('deduct_pitch_credit', {
+        p_user_id: user.id,
+      });
+      if (creditErr) {
+        console.error('[save-resume] credit deduction error:', creditErr.message);
+        return NextResponse.json({ error: 'Credit check failed' }, { status: 500 });
+      }
+      if (remaining === -1) {
+        return NextResponse.json({ error: 'no_credits', message: 'You have no pitches remaining. Please upgrade to continue.' }, { status: 402 });
+      }
+      console.log('[save-resume] credit deducted, remaining:', remaining);
+    }
 
     // Build structured_resume from the parsed result
     const structured_resume = {

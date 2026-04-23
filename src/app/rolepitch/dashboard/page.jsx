@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { track } from '@/components/PostHogProvider';
+import UpgradeModal from '@/components/UpgradeModal';
 
 const CSS_VARS = `
   :root {
@@ -102,13 +103,23 @@ export default function RolePitchDashboard() {
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(null);
   const [user, setUser] = useState(null);
+  const [credits, setCredits] = useState(null);
+  const [planTier, setPlanTier] = useState('free');
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  const fetchCredits = () => {
+    fetch('/api/rolepitch/credits')
+      .then(r => r.json())
+      .then(d => { setCredits(d.pitch_credits ?? 10); setPlanTier(d.plan_tier ?? 'free'); })
+      .catch(() => {});
+  };
 
   useEffect(() => {
     const theme = localStorage.getItem('rp_theme') || 'light';
     document.documentElement.setAttribute('data-rp-theme', theme);
 
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+    supabase.auth.getUser().then(({ data: { user } }) => { setUser(user); if (user) fetchCredits(); });
 
     fetch('/api/rolepitch/my-resumes')
       .then(r => r.json())
@@ -148,6 +159,17 @@ export default function RolePitchDashboard() {
             <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em' }}>RolePitch</span>
           </button>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Credits badge */}
+            {credits !== null && (
+              <button
+                onClick={() => setShowUpgrade(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: credits <= 2 ? 'oklch(0.65 0.2 30 / 0.1)' : 'var(--surface)', border: `1px solid ${credits <= 2 ? 'oklch(0.65 0.2 30 / 0.4)' : 'var(--border)'}`, borderRadius: 20, padding: '4px 12px 4px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: credits <= 2 ? 'oklch(0.65 0.2 30)' : 'var(--text-muted)', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+              >
+                <span style={{ fontSize: 14 }}>🎯</span>
+                {credits} pitch{credits !== 1 ? 'es' : ''} left
+                {credits <= 2 && <span style={{ marginLeft: 2, fontSize: 10 }}>· Top up</span>}
+              </button>
+            )}
             {user && (
               <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent-dim)', border: '1.5px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
                 {(user.email || '?')[0].toUpperCase()}
@@ -260,6 +282,17 @@ export default function RolePitchDashboard() {
           )}
         </div>
       </div>
+
+      {showUpgrade && (
+        <UpgradeModal
+          trigger="manual"
+          onClose={() => setShowUpgrade(false)}
+          onSuccess={({ credits_added, new_balance }) => {
+            setCredits(new_balance);
+            setShowUpgrade(false);
+          }}
+        />
+      )}
     </>
   );
 }
