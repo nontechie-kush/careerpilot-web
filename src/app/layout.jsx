@@ -5,6 +5,8 @@ import Providers from '@/components/Providers';
 import { Analytics } from '@vercel/analytics/react';
 import PostHogProvider from '@/components/PostHogProvider';
 
+const GA_ID = 'G-S84XLE50EG';
+
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
@@ -28,6 +30,19 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GA_ID}', { send_page_view: false });
+          window.rp_track = function(event, props) {
+            if (typeof gtag === 'undefined') return;
+            gtag('event', event, props || {});
+          };
+        `}} />
+      </head>
       <body className={`${inter.className} bg-gray-50 dark:bg-slate-950`}>
         <Providers>
           {children}
