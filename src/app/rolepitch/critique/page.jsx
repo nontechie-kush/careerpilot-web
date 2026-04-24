@@ -127,6 +127,7 @@ function StepUpload({ onParsed }) {
   const handleFile = (file) => {
     if (!file) return;
     const fd = new FormData();
+    fd.append('type', 'pdf');
     fd.append('file', file);
     parse(fd);
   };
@@ -134,6 +135,7 @@ function StepUpload({ onParsed }) {
   const handlePaste = () => {
     if (!pasteText.trim()) return;
     const fd = new FormData();
+    fd.append('type', 'paste');
     fd.append('text', pasteText.trim());
     parse(fd);
   };
@@ -141,6 +143,7 @@ function StepUpload({ onParsed }) {
   const handleUrl = () => {
     if (!urlText.trim()) return;
     const fd = new FormData();
+    fd.append('type', 'url');
     fd.append('url', urlText.trim());
     parse(fd);
   };
