@@ -99,54 +99,132 @@ function scoreColor(score) {
   return 'var(--red)';
 }
 
+const COUNTDOWN_SECS = 7;
+
 // ── Step 1: Upload ────────────────────────────────────────────────────────────
 function StepUpload({ onParsed }) {
-  const [phase, setPhase] = useState('idle'); // idle | parsing | error
+  const [phase, setPhase] = useState('idle'); // idle | staged | parsing | error
   const [errorMsg, setErrorMsg] = useState('');
   const [drag, setDrag] = useState(false);
   const [pasteMode, setPasteMode] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [urlMode, setUrlMode] = useState(false);
   const [urlText, setUrlText] = useState('');
+  // Multi-file staging
+  const [stagedFiles, setStagedFiles] = useState([]); // [{ name, file|null, type:'file'|'image' }]
+  const [countdown, setCountdown] = useState(COUNTDOWN_SECS);
+  const countdownRef = useRef(null);
   const fileRef = useRef();
+  const moreRef = useRef();
 
-  const parse = async (formData) => {
+  const startCountdown = () => {
+    setCountdown(COUNTDOWN_SECS);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(countdownRef.current); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Auto-submit when countdown hits 0
+  useEffect(() => {
+    if (countdown === 0 && phase === 'staged' && stagedFiles.length > 0) {
+      submitFiles();
+    }
+  }, [countdown]);
+
+  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
+
+  const addFiles = (newFiles) => {
+    const entries = Array.from(newFiles).map(f => ({
+      name: f.name,
+      file: f,
+      type: f.type.startsWith('image/') ? 'image' : 'file',
+    }));
+    setStagedFiles(prev => {
+      const merged = [...prev, ...entries];
+      return merged;
+    });
+    setPhase('staged');
+    startCountdown();
+  };
+
+  const removeFile = (idx) => {
+    setStagedFiles(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      if (next.length === 0) { setPhase('idle'); if (countdownRef.current) clearInterval(countdownRef.current); }
+      else startCountdown();
+      return next;
+    });
+  };
+
+  const cancelCountdown = () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setCountdown(COUNTDOWN_SECS);
+  };
+
+  const submitFiles = async () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
     setPhase('parsing');
     setErrorMsg('');
     try {
-      const res = await fetch('/api/rolepitch/parse-resume', { method: 'POST', body: formData });
+      const fd = new FormData();
+      // Detect if all are images → use paste type with image hint
+      const hasImages = stagedFiles.some(f => f.type === 'image');
+      const hasPdf = stagedFiles.some(f => f.name?.toLowerCase().endsWith('.pdf'));
+
+      if (hasPdf && !hasImages) {
+        fd.append('type', 'pdf');
+        fd.append('file', stagedFiles[0].file);
+        // Append extra files as additional context blobs
+        stagedFiles.slice(1).forEach((f, i) => fd.append(`extra_${i}`, f.file));
+      } else {
+        // Images or mixed: send as 'images' type, API handles via vision or text extraction
+        fd.append('type', 'images');
+        stagedFiles.forEach((f, i) => fd.append(`image_${i}`, f.file));
+      }
+
+      const res = await fetch('/api/rolepitch/parse-resume', { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Parse failed');
       onParsed(data.parsed);
     } catch (e) {
       setErrorMsg(e.message);
       setPhase('error');
+      setStagedFiles([]);
     }
-  };
-
-  const handleFile = (file) => {
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('type', 'pdf');
-    fd.append('file', file);
-    parse(fd);
   };
 
   const handlePaste = () => {
     if (!pasteText.trim()) return;
+    setPhase('parsing');
     const fd = new FormData();
     fd.append('type', 'paste');
     fd.append('text', pasteText.trim());
-    parse(fd);
+    fetch('/api/rolepitch/parse-resume', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(data => { if (data.error) throw new Error(data.error); onParsed(data.parsed); })
+      .catch(e => { setErrorMsg(e.message); setPhase('error'); });
   };
 
   const handleUrl = () => {
     if (!urlText.trim()) return;
+    setPhase('parsing');
     const fd = new FormData();
     fd.append('type', 'url');
     fd.append('url', urlText.trim());
-    parse(fd);
+    fetch('/api/rolepitch/parse-resume', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(data => { if (data.error) throw new Error(data.error); onParsed(data.parsed); })
+      .catch(e => { setErrorMsg(e.message); setPhase('error'); });
   };
+
+  // Countdown ring progress (0–1)
+  const ringProgress = countdown / COUNTDOWN_SECS;
+  const R = 18;
+  const circ = 2 * Math.PI * R;
 
   if (phase === 'parsing') return (
     <div style={{ textAlign: 'center', padding: '48px 0' }}>
@@ -160,23 +238,79 @@ function StepUpload({ onParsed }) {
     <div>
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 6 }}>Upload your resume</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>PDF, link, or paste — Pilot will read it and give you a brutally honest critique.</p>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>PDF, screenshots, link, or paste — Pilot will read everything and give you a brutally honest critique.</p>
       </div>
 
-      {!pasteMode && !urlMode && (
+      {!pasteMode && !urlMode && phase !== 'staged' && (
         <div
           className={`rc-upload-zone${drag ? ' drag' : ''}`}
           onDragOver={e => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
-          onDrop={e => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]); }}
+          onDrop={e => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
           onClick={() => fileRef.current?.click()}
         >
-          <input ref={fileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
+          <input ref={fileRef} type="file" accept=".pdf,image/*" multiple style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
           <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ margin: '0 auto 12px', display: 'block', opacity: 0.4 }}>
             <path d="M10 22H8a6 6 0 010-12h1M22 22h2a6 6 0 000-12h-1M16 22V10M12 14l4-4 4 4" stroke="var(--text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Drop your resume PDF here</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>or click to browse</div>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Drop PDF or screenshots here</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Multiple files supported · click to browse</div>
+        </div>
+      )}
+
+      {/* Staged files + countdown */}
+      {phase === 'staged' && (
+        <div>
+          {/* File list */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {stagedFiles.map((f, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, padding: '10px 12px' }}>
+                <span style={{ fontSize: 16 }}>{f.type === 'image' ? '🖼️' : '📄'}</span>
+                <span style={{ fontSize: 13, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                <button onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 16, lineHeight: 1, padding: '0 2px', flexShrink: 0 }}>×</button>
+              </div>
+            ))}
+          </div>
+
+          {/* Countdown + actions */}
+          <div style={{ background: 'var(--accent-dim)', border: '1px solid oklch(0.50 0.19 248 / 0.2)', borderRadius: 12, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+            {/* Countdown ring */}
+            <div style={{ position: 'relative', width: 44, height: 44, flexShrink: 0 }}>
+              <svg width="44" height="44" viewBox="0 0 44 44" style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx="22" cy="22" r={R} fill="none" stroke="var(--border)" strokeWidth="3" />
+                <circle
+                  cx="22" cy="22" r={R} fill="none"
+                  stroke="var(--accent)" strokeWidth="3"
+                  strokeDasharray={circ}
+                  strokeDashoffset={circ * (1 - ringProgress)}
+                  strokeLinecap="round"
+                  style={{ transition: 'stroke-dashoffset 0.9s linear' }}
+                />
+              </svg>
+              <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>{countdown}</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>
+                Submitting in {countdown}s…
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {stagedFiles.length} file{stagedFiles.length > 1 ? 's' : ''} ready · add more or submit now
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="rc-btn-primary" onClick={submitFiles} style={{ flex: 1 }}>
+              Analyse now →
+            </button>
+            <button
+              onClick={() => { cancelCountdown(); moreRef.current?.click(); }}
+              style={{ fontSize: 13, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 600, whiteSpace: 'nowrap' }}
+            >
+              + Upload more
+            </button>
+            <input ref={moreRef} type="file" accept=".pdf,image/*" multiple style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
+          </div>
         </div>
       )}
 
@@ -213,7 +347,7 @@ function StepUpload({ onParsed }) {
         </div>
       )}
 
-      {!pasteMode && !urlMode && (
+      {phase !== 'staged' && !pasteMode && !urlMode && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'center' }}>
           <button onClick={() => setUrlMode(true)} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--border)', borderRadius: 7, padding: '6px 12px', cursor: 'pointer', fontFamily: 'var(--sans)' }}>Use a link instead</button>
           <button onClick={() => setPasteMode(true)} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--border)', borderRadius: 7, padding: '6px 12px', cursor: 'pointer', fontFamily: 'var(--sans)' }}>Paste text</button>

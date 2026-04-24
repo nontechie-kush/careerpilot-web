@@ -77,6 +77,47 @@ export async function POST(request) {
       const buffer = Buffer.from(await file.arrayBuffer());
       const pdfData = await pdfParse(buffer);
       textToParse = pdfData.text;
+
+      // Append any extra files (additional PDFs)
+      let idx = 0;
+      while (formData.get(`extra_${idx}`)) {
+        try {
+          const extra = formData.get(`extra_${idx}`);
+          const buf = Buffer.from(await extra.arrayBuffer());
+          const extraData = await pdfParse(buf);
+          textToParse += '\n\n' + extraData.text;
+        } catch {}
+        idx++;
+      }
+    } else if (type === 'images') {
+      // Vision path — send all images to Claude and ask it to extract resume text first
+      const imageContents = [];
+      let imgIdx = 0;
+      while (formData.get(`image_${imgIdx}`)) {
+        const img = formData.get(`image_${imgIdx}`);
+        const buffer = Buffer.from(await img.arrayBuffer());
+        const mediaType = img.type || 'image/jpeg';
+        imageContents.push({
+          type: 'image',
+          source: { type: 'base64', media_type: mediaType, data: buffer.toString('base64') },
+        });
+        imgIdx++;
+      }
+      if (imageContents.length === 0) return NextResponse.json({ error: 'No images provided' }, { status: 400 });
+
+      // Use vision to extract text from all screenshots, then parse
+      const extractMsg = await anthropic.messages.create({
+        model: 'claude-opus-4-6',
+        max_tokens: 3000,
+        messages: [{
+          role: 'user',
+          content: [
+            ...imageContents,
+            { type: 'text', text: 'These are screenshots of a resume. Extract ALL text exactly as it appears — preserve every bullet, date, company, title, and metric. Output raw text only, no commentary.' },
+          ],
+        }],
+      });
+      textToParse = extractMsg.content[0].text;
     } else if (type === 'paste' || type === 'text') {
       textToParse = formData.get('text') || '';
     } else if (type === 'links_only') {
