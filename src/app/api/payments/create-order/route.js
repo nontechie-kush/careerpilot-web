@@ -44,16 +44,23 @@ export async function POST(request) {
     const total_paise = base_paise + gst_paise;
 
     // Create Razorpay order
-    const order = await getRazorpay().orders.create({
-      amount: total_paise,
-      currency: 'INR',
-      receipt: `rp_${user.id.slice(0, 8)}_${plan}_${Date.now()}`,
-      notes: { user_id: user.id, plan, credits: String(credits) },
-    });
+    console.log('[create-order] key_id prefix:', process.env.RAZORPAY_KEY_ID?.slice(0, 12));
+    let order;
+    try {
+      order = await getRazorpay().orders.create({
+        amount: total_paise,
+        currency: 'INR',
+        receipt: `rp_${user.id.slice(0, 8)}_${plan}_${Date.now()}`,
+        notes: { user_id: user.id, plan, credits: String(credits) },
+      });
+    } catch (rzpErr) {
+      console.error('[create-order] Razorpay error:', rzpErr?.error || rzpErr?.message || rzpErr);
+      return NextResponse.json({ error: 'Payment provider error', detail: rzpErr?.error?.description || rzpErr?.message }, { status: 500 });
+    }
 
     // Store pending order in DB
     const service = createServiceClient();
-    await service.from('rolepitch_orders').insert({
+    const { error: dbErr } = await service.from('rolepitch_orders').insert({
       user_id: user.id,
       razorpay_order_id: order.id,
       plan,
@@ -61,6 +68,7 @@ export async function POST(request) {
       amount_paise: total_paise,
       status: 'created',
     });
+    if (dbErr) console.error('[create-order] DB insert error:', dbErr.message);
 
     return NextResponse.json({
       order_id: order.id,
