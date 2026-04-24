@@ -1276,9 +1276,16 @@ function StepGapQuestions({ onNext, onBack, dir }) {
 
   useEffect(() => {
     const session = loadSession();
-    const gaps = session.tailoredResult?.gaps;
+    const tr = session.tailoredResult;
+    const gapQuestions = tr?.gap_questions;
+    const gaps = tr?.gaps;
+
     let qs = DEFAULT_QUESTIONS;
-    if (gaps?.length) {
+    if (gapQuestions?.length) {
+      // Use Claude-generated questions directly — specific to this job+candidate
+      qs = gapQuestions.slice(0, 3).map((q, i) => ({ question: q, tip: gaps?.[i] || '' }));
+    } else if (gaps?.length) {
+      // Fallback: convert gap strings via regex (legacy path)
       qs = gaps.slice(0, 3).map(gap => ({ question: gapToQuestion(gap), tip: gap }))
         .concat(DEFAULT_QUESTIONS).slice(0, DEFAULT_QUESTIONS.length);
     }

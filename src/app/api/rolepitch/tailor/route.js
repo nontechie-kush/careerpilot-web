@@ -95,6 +95,11 @@ Return ONLY valid JSON. No markdown, no explanation.
   "before_score": <integer 0-100: ${isLinksOnly ? 'estimated fit of raw profile before tailoring' : 'how well original resume matches JD'}>,
   "after_score": <integer 0-100: how well ${isLinksOnly ? 'generated' : 'tailored'} resume matches JD — must be higher than before_score>,
   "gaps": ["gap1", "gap2"],
+  "gap_questions": [
+    "Conversational Pilot-voice question about gap 1 — specific to the actual gap topic, direct, no 'great!' or 'interesting!', 1-2 sentences max",
+    "Conversational Pilot-voice question about gap 2",
+    "Conversational Pilot-voice question about gap 3"
+  ],
   "summary": "2-3 sentence tailored professional summary using keywords from JD",
   "skills": ["updated skills list prioritizing JD keywords"],
   "experience": [
@@ -119,7 +124,14 @@ OTHER RULES:
 - Keep ALL roles. Do not drop any.
 - Never fabricate companies or titles not in the profile.
 - before_score and after_score must be realistic integers (before typically 40-70, after 65-90).
-- gaps: list 2-4 things the JD wants that the profile doesn't clearly show.
+- gaps: list 2-4 specific things the JD wants that the profile doesn't clearly show. Name the actual skill/domain/tool.
+- gap_questions: write exactly 3 questions, one per major gap. Each must:
+  • Name the actual gap topic directly (e.g. "GRI reporting" not "experience")
+  • Be direct and conversational — like a coach, not HR
+  • Ask if they have ANY angle on this — even indirect, adjacent, or partial
+  • Be 1-2 sentences. No "great!" or "interesting!" or preamble.
+  • Example good: "The JD needs GRI framework experience — have you done any ESG disclosures, even partial, at Oriflame or EY?"
+  • Example bad: "The JD wants demonstrated experience — have you touched this at all?"
 - summary must use exact keywords from JD.`;
 
     const msg = await anthropic.messages.create({
@@ -152,6 +164,7 @@ OTHER RULES:
       before_score: result.before_score || 55,
       after_score: result.after_score || 78,
       gaps: result.gaps || [],
+      gap_questions: result.gap_questions || [],
     });
 
   } catch (err) {
