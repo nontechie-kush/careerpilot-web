@@ -100,6 +100,26 @@ function scoreColor(score) {
 }
 
 const COUNTDOWN_SECS = 10;
+const MAX_IMG_PX = 1600;
+const IMG_QUALITY = 0.75;
+
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, MAX_IMG_PX / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => resolve(new File([blob], file.name, { type: 'image/jpeg' })), 'image/jpeg', IMG_QUALITY);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
 
 // ── Step 1: Upload ────────────────────────────────────────────────────────────
 function StepUpload({ onParsed }) {
@@ -137,16 +157,14 @@ function StepUpload({ onParsed }) {
 
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
 
-  const addFiles = (newFiles) => {
-    const entries = Array.from(newFiles).map(f => ({
-      name: f.name,
-      file: f,
-      type: f.type.startsWith('image/') ? 'image' : 'file',
+  const addFiles = async (newFiles) => {
+    const raw = Array.from(newFiles);
+    const entries = await Promise.all(raw.map(async f => {
+      const isImage = f.type.startsWith('image/');
+      const file = isImage ? await compressImage(f) : f;
+      return { name: f.name, file, type: isImage ? 'image' : 'file' };
     }));
-    setStagedFiles(prev => {
-      const merged = [...prev, ...entries];
-      return merged;
-    });
+    setStagedFiles(prev => [...prev, ...entries]);
     setPhase('staged');
     startCountdown();
   };
@@ -171,23 +189,26 @@ function StepUpload({ onParsed }) {
     setErrorMsg('');
     try {
       const fd = new FormData();
-      // Detect if all are images → use paste type with image hint
       const hasImages = stagedFiles.some(f => f.type === 'image');
       const hasPdf = stagedFiles.some(f => f.name?.toLowerCase().endsWith('.pdf'));
 
       if (hasPdf && !hasImages) {
         fd.append('type', 'pdf');
         fd.append('file', stagedFiles[0].file);
-        // Append extra files as additional context blobs
         stagedFiles.slice(1).forEach((f, i) => fd.append(`extra_${i}`, f.file));
       } else {
-        // Images or mixed: send as 'images' type, API handles via vision or text extraction
         fd.append('type', 'images');
         stagedFiles.forEach((f, i) => fd.append(`image_${i}`, f.file));
       }
 
       const res = await fetch('/api/rolepitch/parse-resume', { method: 'POST', body: fd });
-      const data = await res.json();
+
+      // Guard against non-JSON responses (e.g. 413 payload too large)
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); }
+      catch { throw new Error(res.status === 413 ? 'Files too large — try fewer screenshots or a PDF' : `Server error (${res.status})`); }
+
       if (!res.ok || data.error) throw new Error(data.error || 'Parse failed');
       onParsed(data.parsed);
     } catch (e) {
@@ -197,28 +218,34 @@ function StepUpload({ onParsed }) {
     }
   };
 
-  const handlePaste = () => {
+  const parseFormData = async (fd) => {
+    const res = await fetch('/api/rolepitch/parse-resume', { method: 'POST', body: fd });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch { throw new Error(`Server error (${res.status})`); }
+    if (!res.ok || data.error) throw new Error(data.error || 'Parse failed');
+    return data;
+  };
+
+  const handlePaste = async () => {
     if (!pasteText.trim()) return;
     setPhase('parsing');
     const fd = new FormData();
     fd.append('type', 'paste');
     fd.append('text', pasteText.trim());
-    fetch('/api/rolepitch/parse-resume', { method: 'POST', body: fd })
-      .then(r => r.json())
-      .then(data => { if (data.error) throw new Error(data.error); onParsed(data.parsed); })
-      .catch(e => { setErrorMsg(e.message); setPhase('error'); });
+    try { const data = await parseFormData(fd); onParsed(data.parsed); }
+    catch (e) { setErrorMsg(e.message); setPhase('error'); }
   };
 
-  const handleUrl = () => {
+  const handleUrl = async () => {
     if (!urlText.trim()) return;
     setPhase('parsing');
     const fd = new FormData();
     fd.append('type', 'url');
     fd.append('url', urlText.trim());
-    fetch('/api/rolepitch/parse-resume', { method: 'POST', body: fd })
-      .then(r => r.json())
-      .then(data => { if (data.error) throw new Error(data.error); onParsed(data.parsed); })
-      .catch(e => { setErrorMsg(e.message); setPhase('error'); });
+    try { const data = await parseFormData(fd); onParsed(data.parsed); }
+    catch (e) { setErrorMsg(e.message); setPhase('error'); }
   };
 
   // Countdown ring progress (0–1)
