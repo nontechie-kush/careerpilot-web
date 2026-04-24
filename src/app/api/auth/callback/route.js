@@ -43,6 +43,7 @@ export async function GET(request) {
     );
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) console.error('[auth/callback] exchangeCodeForSession error:', error.message, error.status, '| next:', next);
 
     if (!error) {
       // Check onboarding status to decide where to redirect
