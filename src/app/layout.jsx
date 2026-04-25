@@ -13,6 +13,7 @@ export const metadata = {
   title: 'RolePitch — Your resume, tailored for every role.',
   description: 'Paste a job link. Pilot reads the JD, picks your strongest achievements, and rewrites your bullets to match — in under 60 seconds.',
   manifest: '/manifest.json',
+  metadataBase: new URL('https://www.rolepitch.com'),
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
